@@ -13,7 +13,11 @@ class BootCompletedReceiver : BroadcastReceiver() {
         val app = context.timerApplication()
         app.applicationScope.launch {
             try {
-                app.container.automationCoordinator.recoverAfterBoot()
+                try {
+                    app.container.automationCoordinator.recoverAfterBoot()
+                } finally {
+                    app.container.cloudSyncCoordinator.refreshScheduleFromStoredPreferences()
+                }
             } finally {
                 pending.finish()
             }

@@ -111,6 +111,11 @@ class MainActivity : ComponentActivity() {
                     onImportBackup = {
                         importLauncher.launch(arrayOf("application/json", "text/plain"))
                     },
+                    cloudSyncState = uiState.cloudSync,
+                    onSaveCloudSyncSettings = viewModel::saveCloudSyncSettings,
+                    onClearCloudSyncToken = viewModel::clearCloudSyncToken,
+                    onSyncCloudNow = viewModel::syncCloudNow,
+                    onRestoreCloudLatest = viewModel::restoreCloudLatest,
                     onClearStatusMessage = viewModel::clearStatusMessage
                 )
             }

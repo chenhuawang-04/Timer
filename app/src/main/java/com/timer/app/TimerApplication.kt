@@ -11,6 +11,10 @@ import com.timer.app.domain.AndroidTimerClock
 import com.timer.app.domain.UuidIdProvider
 import com.timer.app.notification.TimerNotificationController
 import com.timer.app.scheduler.DeadlineAlarmScheduler
+import com.timer.app.sync.CloudSyncCoordinator
+import com.timer.app.sync.CloudSyncNetworkMonitor
+import com.timer.app.sync.CloudSyncScheduler
+import com.timer.app.sync.CloudSyncSecretStore
 import com.timer.app.widget.TimerWidgetUpdater
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -24,15 +28,23 @@ class TimerApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        container = AppContainer(this)
+        container = AppContainer(this, applicationScope)
         container.notificationController.ensureNotificationChannels()
         applicationScope.launch {
-            container.automationCoordinator.warmUp()
+            try {
+                container.automationCoordinator.warmUp()
+            } finally {
+                container.cloudSyncCoordinator.refreshScheduleFromStoredPreferences()
+                container.cloudSyncCoordinator.requestAppLaunchCatchUp()
+            }
         }
     }
 }
 
-class AppContainer(context: Context) {
+class AppContainer(
+    context: Context,
+    private val applicationScope: CoroutineScope
+) {
     private val appContext = context.applicationContext
 
     val database: TimerDatabase = Room.databaseBuilder(
@@ -61,6 +73,22 @@ class AppContainer(context: Context) {
     )
 
     val widgetUpdater: TimerWidgetUpdater = TimerWidgetUpdater(appContext)
+
+    val cloudSyncSecretStore: CloudSyncSecretStore = CloudSyncSecretStore(appContext)
+
+    val cloudSyncScheduler: CloudSyncScheduler = CloudSyncScheduler(appContext)
+
+    val cloudSyncNetworkMonitor: CloudSyncNetworkMonitor = CloudSyncNetworkMonitor(appContext)
+
+    val cloudSyncCoordinator: CloudSyncCoordinator = CloudSyncCoordinator(
+        appContext = appContext,
+        applicationScope = applicationScope,
+        repository = repository,
+        preferencesRepository = preferencesRepository,
+        secretStore = cloudSyncSecretStore,
+        scheduler = cloudSyncScheduler,
+        networkMonitor = cloudSyncNetworkMonitor
+    )
 
     val automationCoordinator: TimerAutomationCoordinator = TimerAutomationCoordinator(
         context = appContext,

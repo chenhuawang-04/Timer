@@ -2,12 +2,19 @@ package com.timer.app.data
 
 import org.json.JSONArray
 import org.json.JSONObject
+import com.timer.app.sync.CloudSyncConfiguration
+import com.timer.app.sync.CloudSyncDefaults
+import com.timer.app.sync.CloudSyncPreferencesSnapshot
+import com.timer.app.sync.CloudSyncProviders
+import com.timer.app.sync.CloudSyncResultCodes
+import com.timer.app.sync.CloudSyncStatusSnapshot
 
 data class AppBackupPayload(
     val schemaVersion: Int,
     val exportedAtEpochMillis: Long,
     val preferences: AppPreferencesSnapshot,
-    val repository: RepositoryExportData
+    val repository: RepositoryExportData,
+    val containsCloudSyncConfiguration: Boolean = true
 )
 
 object BackupPayloadCodec {
@@ -34,10 +41,11 @@ object BackupPayloadCodec {
 
     fun decode(json: String): AppBackupPayload {
         val root = JSONObject(json)
+        val preferencesJson = root.optJSONObject("preferences") ?: JSONObject()
         return AppBackupPayload(
             schemaVersion = root.optInt("schemaVersion", 0),
             exportedAtEpochMillis = root.optLong("exportedAtEpochMillis", 0L),
-            preferences = decodePreferences(root.optJSONObject("preferences") ?: JSONObject()),
+            preferences = decodePreferences(preferencesJson),
             repository = RepositoryExportData(
                 categories = root.optJSONArray("categories").toCategoryList(),
                 goals = root.optJSONArray("goals").toGoalList(),
@@ -46,7 +54,8 @@ object BackupPayloadCodec {
                 states = root.optJSONArray("states").toStateList(),
                 sessions = root.optJSONArray("sessions").toSessionList(),
                 events = root.optJSONArray("events").toEventList()
-            )
+            ),
+            containsCloudSyncConfiguration = preferencesJson.has("cloudSync")
         )
     }
 
@@ -61,6 +70,7 @@ object BackupPayloadCodec {
         .put("keepScreenOnInFocus", snapshot.keepScreenOnInFocus)
         .put("lastSelectedTab", snapshot.lastSelectedTab)
         .putNullable("lastBackupAtEpochMillis", snapshot.lastBackupAtEpochMillis)
+        .put("cloudSync", encodeCloudSync(snapshot.cloudSync))
 
     private fun decodePreferences(json: JSONObject) = AppPreferencesSnapshot(
         themeMode = json.optString("themeMode", ThemeModes.SYSTEM),
@@ -72,8 +82,57 @@ object BackupPayloadCodec {
         energyMode = json.optString("energyMode", EnergyModes.BALANCED),
         keepScreenOnInFocus = json.optBoolean("keepScreenOnInFocus", true),
         lastBackupAtEpochMillis = json.optNullableLong("lastBackupAtEpochMillis"),
-        lastSelectedTab = json.optString("lastSelectedTab", "TODAY")
+        lastSelectedTab = json.optString("lastSelectedTab", "TODAY"),
+        cloudSync = decodeCloudSync(json.optJSONObject("cloudSync"))
     )
+
+    private fun encodeCloudSync(snapshot: CloudSyncPreferencesSnapshot) = JSONObject()
+        .put(
+            "configuration",
+            JSONObject()
+                .put("autoSyncEnabled", snapshot.configuration.autoSyncEnabled)
+                .put("provider", snapshot.configuration.provider)
+                .put("repositoryOwner", snapshot.configuration.repositoryOwner)
+                .put("repositoryName", snapshot.configuration.repositoryName)
+                .put("branch", snapshot.configuration.branch)
+                .put("basePath", snapshot.configuration.basePath)
+                .put("wifiOnly", snapshot.configuration.wifiOnly)
+        )
+        .put(
+            "status",
+            JSONObject()
+                .put("lastResultCode", snapshot.status.lastResultCode)
+                .putNullable("lastMessage", snapshot.status.lastMessage)
+                .putNullable("lastAttemptAtEpochMillis", snapshot.status.lastAttemptAtEpochMillis)
+                .putNullable("lastSuccessAtEpochMillis", snapshot.status.lastSuccessAtEpochMillis)
+                .putNullable("lastSyncedDataSha256", snapshot.status.lastSyncedDataSha256)
+                .putNullable("lastSuccessfulTargetKey", snapshot.status.lastSuccessfulTargetKey)
+        )
+
+    private fun decodeCloudSync(json: JSONObject?): CloudSyncPreferencesSnapshot {
+        val root = json ?: JSONObject()
+        val configuration = root.optJSONObject("configuration") ?: JSONObject()
+        val status = root.optJSONObject("status") ?: JSONObject()
+        return CloudSyncPreferencesSnapshot(
+            configuration = CloudSyncConfiguration(
+                autoSyncEnabled = configuration.optBoolean("autoSyncEnabled", false),
+                provider = configuration.optString("provider", CloudSyncProviders.GITEE),
+                repositoryOwner = configuration.optString("repositoryOwner", ""),
+                repositoryName = configuration.optString("repositoryName", ""),
+                branch = configuration.optString("branch", CloudSyncDefaults.DEFAULT_BRANCH),
+                basePath = configuration.optString("basePath", CloudSyncDefaults.DEFAULT_BASE_PATH),
+                wifiOnly = configuration.optBoolean("wifiOnly", true)
+            ).normalized(),
+            status = CloudSyncStatusSnapshot(
+                lastResultCode = status.optString("lastResultCode", CloudSyncResultCodes.IDLE),
+                lastMessage = status.optNullableString("lastMessage"),
+                lastAttemptAtEpochMillis = status.optNullableLong("lastAttemptAtEpochMillis"),
+                lastSuccessAtEpochMillis = status.optNullableLong("lastSuccessAtEpochMillis"),
+                lastSyncedDataSha256 = status.optNullableString("lastSyncedDataSha256"),
+                lastSuccessfulTargetKey = status.optNullableString("lastSuccessfulTargetKey")
+            )
+        )
+    }
 
     private fun encodeCategory(entity: TaskCategoryEntity) = JSONObject()
         .put("id", entity.id)

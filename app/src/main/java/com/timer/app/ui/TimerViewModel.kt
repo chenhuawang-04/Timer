@@ -32,12 +32,15 @@ import com.timer.app.data.TaskStatuses
 import com.timer.app.data.TaskTemplateEntity
 import com.timer.app.data.TaskTypes
 import com.timer.app.data.ThemeModes
+import com.timer.app.data.toPortableBackup
 import com.timer.app.domain.DurationFormatter
 import com.timer.app.domain.PomodoroMath
 import com.timer.app.domain.PomodoroPhaseTypes
 import com.timer.app.domain.StatsCalculator
 import com.timer.app.domain.StatsSummary
 import com.timer.app.domain.TimerMath
+import com.timer.app.sync.CloudSyncResultCodes
+import com.timer.app.sync.CloudSyncSettingsDraft
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.io.OutputStreamWriter
@@ -153,6 +156,7 @@ data class TimerUiState(
     val focusTask: TaskUiModel? = null,
     val runningTaskCount: Int = 0,
     val appearance: AppPreferencesSnapshot = AppPreferencesSnapshot(),
+    val cloudSync: CloudSyncSettingsUiState = CloudSyncSettingsUiState(),
     val notificationPermissionGranted: Boolean = true,
     val serviceWarningMessage: String? = null,
     val statusMessage: String? = null,
@@ -214,10 +218,12 @@ class TimerViewModel(
     val uiState = combine(
         repository.observeAppSnapshot(),
         container.preferencesRepository.preferences,
+        container.cloudSyncCoordinator.credentialState,
+        container.cloudSyncCoordinator.syncInProgress,
         controls,
         ticker
-    ) { snapshot, preferences, controlState, _ ->
-        buildUiState(snapshot, preferences, controlState)
+    ) { snapshot, preferences, credentialState, syncInProgress, controlState, _ ->
+        buildUiState(snapshot, preferences, credentialState, syncInProgress, controlState)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000L),
@@ -396,7 +402,7 @@ class TimerViewModel(
             try {
                 withContext(Dispatchers.IO) {
                     val repositoryData = repository.exportData()
-                    val preferences = container.preferencesRepository.preferences.first()
+                    val preferences = container.preferencesRepository.preferences.first().toPortableBackup()
                     val payloadText = BackupPayloadCodec.encode(
                         preferences = preferences,
                         repository = repositoryData,
@@ -423,12 +429,47 @@ class TimerViewModel(
                     }.orEmpty()
                     val payload: AppBackupPayload = BackupPayloadCodec.decode(text)
                     repository.importData(payload.repository)
-                    container.preferencesRepository.importSnapshot(payload.preferences)
+                    container.preferencesRepository.importSnapshot(
+                        snapshot = payload.preferences,
+                        importCloudSyncConfiguration = payload.containsCloudSyncConfiguration
+                    )
+                    container.cloudSyncCoordinator.refreshScheduleFromStoredPreferences()
                 }
                 container.automationCoordinator.warmUp(selectedDate.value)
                 statusMessage.value = appContext.getString(R.string.status_message_backup_imported)
             } catch (_: Throwable) {
                 statusMessage.value = appContext.getString(R.string.status_message_backup_import_failed)
+            }
+        }
+    }
+
+    fun saveCloudSyncSettings(draft: CloudSyncSettingsDraft) {
+        viewModelScope.launch {
+            container.cloudSyncCoordinator.saveSettings(draft)
+            statusMessage.value = appContext.getString(R.string.cloud_sync_settings_saved)
+        }
+    }
+
+    fun clearCloudSyncToken() {
+        viewModelScope.launch {
+            container.cloudSyncCoordinator.clearAccessToken()
+            statusMessage.value = appContext.getString(R.string.cloud_sync_token_cleared)
+        }
+    }
+
+    fun syncCloudNow() {
+        viewModelScope.launch {
+            val result = container.cloudSyncCoordinator.syncNow()
+            statusMessage.value = result.message
+        }
+    }
+
+    fun restoreCloudLatest() {
+        viewModelScope.launch {
+            val result = container.cloudSyncCoordinator.restoreLatest()
+            statusMessage.value = result.message
+            if (result.resultCode == CloudSyncResultCodes.RESTORED) {
+                container.automationCoordinator.warmUp(selectedDate.value)
             }
         }
     }
@@ -446,6 +487,8 @@ class TimerViewModel(
     private fun buildUiState(
         snapshot: com.timer.app.data.AppSnapshot,
         preferences: AppPreferencesSnapshot,
+        credentialState: com.timer.app.sync.CloudSyncCredentialSnapshot,
+        syncInProgress: Boolean,
         controlState: UiControlState
     ): TimerUiState {
         val nowEpoch = System.currentTimeMillis()
@@ -569,6 +612,11 @@ class TimerViewModel(
             focusTask = focusTask,
             runningTaskCount = runningTasks.size,
             appearance = preferences,
+            cloudSync = CloudSyncSettingsUiState(
+                preferences = preferences.cloudSync,
+                hasToken = credentialState.hasToken,
+                isBusy = syncInProgress
+            ),
             notificationPermissionGranted = controlState.notificationPermissionGranted,
             serviceWarningMessage = controlState.serviceWarningMessage,
             statusMessage = controlState.statusMessage,

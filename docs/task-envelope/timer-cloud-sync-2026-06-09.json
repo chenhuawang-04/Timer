@@ -1,0 +1,55 @@
+{
+  "task_id": "timer-cloud-sync-2026-06-09",
+  "trace_id": "timer-sync-github-gitee-20260609",
+  "parent_task_id": null,
+  "stage": "implementation",
+  "objective": "Implement low-overhead daily automatic cloud sync for the Timer Android app using GitHub/Gitee repository-based storage, with chunked snapshots, restore support, and settings UI.",
+  "repo": {
+    "name": "Timer",
+    "ref": "main"
+  },
+  "context_refs": [
+    {
+      "type": "doc",
+      "id": "user-request-cloud-sync",
+      "summary": "Build a daily automatic cloud sync feature on top of GitHub/Gitee repository storage, with strong attention to limits, performance, and usability."
+    },
+    {
+      "type": "artifact",
+      "id": "existing-backup-pipeline",
+      "path": "app/src/main/java/com/timer/app/data/BackupPayloadCodec.kt",
+      "summary": "Existing JSON backup/export pipeline reused as the sync snapshot payload."
+    },
+    {
+      "type": "adr",
+      "id": "2026-06-09-local-first-productivity-suite-expansion",
+      "path": "docs/adr/2026-06-09-local-first-productivity-suite-expansion.md",
+      "summary": "Current local-first product direction that cloud sync extends without introducing a backend."
+    }
+  ],
+  "constraints": {
+    "deadline": "未指定",
+    "risk_level": "high",
+    "budget_tokens": "未指定",
+    "data_classification": "user productivity data + repository access token",
+    "human_approval_required": false
+  },
+  "allowed_tools": ["read", "edit", "shell", "web"],
+  "approval_policy": {
+    "read": "auto",
+    "edit": "auto",
+    "shell": "auto",
+    "network": "auto",
+    "deploy": "deny"
+  },
+  "exit_criteria": [
+    "Cloud sync config added",
+    "Daily scheduling implemented",
+    "Chunked snapshot upload and restore implemented",
+    "GitHub/Gitee repository contents clients added",
+    "UI entry and status surface added",
+    "ADR added",
+    "Static validation completed",
+    "Ready for GitHub CI"
+  ]
+}

@@ -126,6 +126,11 @@ fun TimerDashboardScreen(
     onRequestNotificationPermission: () -> Unit,
     onExportBackup: () -> Unit,
     onImportBackup: () -> Unit,
+    cloudSyncState: CloudSyncSettingsUiState,
+    onSaveCloudSyncSettings: (com.timer.app.sync.CloudSyncSettingsDraft) -> Unit,
+    onClearCloudSyncToken: () -> Unit,
+    onSyncCloudNow: () -> Unit,
+    onRestoreCloudLatest: () -> Unit,
     onClearStatusMessage: () -> Unit
 ) {
     var showTaskEditor by remember { mutableStateOf(false) }
@@ -264,7 +269,12 @@ fun TimerDashboardScreen(
                     onUpdateKeepScreenOn = onUpdateKeepScreenOn,
                     onRequestNotificationPermission = onRequestNotificationPermission,
                     onExportBackup = onExportBackup,
-                    onImportBackup = onImportBackup
+                    onImportBackup = onImportBackup,
+                    cloudSyncState = cloudSyncState,
+                    onSaveCloudSyncSettings = onSaveCloudSyncSettings,
+                    onClearCloudSyncToken = onClearCloudSyncToken,
+                    onSyncCloudNow = onSyncCloudNow,
+                    onRestoreCloudLatest = onRestoreCloudLatest
                 )
             }
         }
@@ -1042,7 +1052,12 @@ private fun SettingsScreen(
     onUpdateKeepScreenOn: (Boolean) -> Unit,
     onRequestNotificationPermission: () -> Unit,
     onExportBackup: () -> Unit,
-    onImportBackup: () -> Unit
+    onImportBackup: () -> Unit,
+    cloudSyncState: CloudSyncSettingsUiState,
+    onSaveCloudSyncSettings: (com.timer.app.sync.CloudSyncSettingsDraft) -> Unit,
+    onClearCloudSyncToken: () -> Unit,
+    onSyncCloudNow: () -> Unit,
+    onRestoreCloudLatest: () -> Unit
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -1138,6 +1153,13 @@ private fun SettingsScreen(
         }
         item {
             SettingsCard(title = stringResource(R.string.section_sync_backup)) {
+                CloudSyncSettingsSection(
+                    state = cloudSyncState,
+                    onSave = onSaveCloudSyncSettings,
+                    onClearToken = onClearCloudSyncToken,
+                    onSyncNow = onSyncCloudNow,
+                    onRestoreLatest = onRestoreCloudLatest
+                )
                 Text(stringResource(R.string.backup_description), style = MaterialTheme.typography.bodySmall)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(onClick = onExportBackup) { Text(stringResource(R.string.action_export_backup)) }
