@@ -49,6 +49,7 @@ class RoomTimerRepository(
     private val database: TimerDatabase,
     private val clock: TimerClock,
     private val idProvider: IdProvider,
+    private val untitledTaskName: String,
     private val zoneId: ZoneId = ZoneId.systemDefault()
 ) {
     private val templateDao = database.templateDao()
@@ -633,7 +634,7 @@ class RoomTimerRepository(
             .toEpochMilli()
     }
 
-    private fun String.sanitizedName(): String = trim().ifBlank { "Untitled task" }
+    private fun String.sanitizedName(): String = trim().ifBlank { untitledTaskName }
 
     private fun TaskRuntimeStateEntity.completedCopy(accumulated: Long, now: Long): TaskRuntimeStateEntity = copy(
         status = TaskStatuses.COMPLETED,

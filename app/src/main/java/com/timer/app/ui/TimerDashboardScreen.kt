@@ -46,9 +46,11 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.timer.app.R
 import com.timer.app.data.TaskStatuses
 import com.timer.app.data.TaskTypes
 import com.timer.app.domain.DurationFormatter
@@ -76,8 +78,8 @@ fun TimerDashboardScreen(
             TopAppBar(
                 title = {
                     Column {
-                        Text("Timer", fontWeight = FontWeight.Bold)
-                        Text("Daily tasks / timers / time windows", style = MaterialTheme.typography.labelMedium)
+                        Text(stringResource(R.string.dashboard_title), fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.dashboard_subtitle), style = MaterialTheme.typography.labelMedium)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
@@ -106,8 +108,12 @@ fun TimerDashboardScreen(
             item { WeeklyChart(uiState) }
             item {
                 SectionHeader(
-                    title = "Today's tasks",
-                    subtitle = if (uiState.tasks.isEmpty()) "Create a task to start" else "${uiState.tasks.size} tasks"
+                    title = stringResource(R.string.section_today_tasks),
+                    subtitle = if (uiState.tasks.isEmpty()) {
+                        stringResource(R.string.today_tasks_subtitle_empty)
+                    } else {
+                        stringResource(R.string.today_tasks_subtitle_count, uiState.tasks.size)
+                    }
                 )
             }
             if (uiState.tasks.isEmpty()) {
@@ -155,18 +161,21 @@ private fun HeroStats(uiState: TimerUiState) {
                 fontWeight = FontWeight.ExtraBold
             )
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                MetricPill("Tasks", "${uiState.stats.plannedTodayCount}")
-                MetricPill("Done", "${uiState.stats.completedTodayCount}")
-                MetricPill("Missed", "${uiState.stats.missedTodayCount}")
+                MetricPill(stringResource(R.string.metric_tasks), "${uiState.stats.plannedTodayCount}")
+                MetricPill(stringResource(R.string.metric_done), "${uiState.stats.completedTodayCount}")
+                MetricPill(stringResource(R.string.metric_missed), "${uiState.stats.missedTodayCount}")
             }
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                MetricPill("Week", DurationFormatter.compact(uiState.stats.trackedWeekMillis))
-                MetricPill("Month", DurationFormatter.compact(uiState.stats.trackedMonthMillis))
-                MetricPill("Window", "${(uiState.stats.timeWindowCompletionRate * 100).toInt()}%")
+                MetricPill(stringResource(R.string.metric_week), compactDurationString(uiState.stats.trackedWeekMillis))
+                MetricPill(stringResource(R.string.metric_month), compactDurationString(uiState.stats.trackedMonthMillis))
+                MetricPill(stringResource(R.string.metric_window), "${(uiState.stats.timeWindowCompletionRate * 100).toInt()}%")
             }
             if (uiState.stats.topTasks.isNotEmpty()) {
+                val topTasksSummary = uiState.stats.topTasks.joinToString {
+                    "${it.taskName.ifBlank { stringResource(R.string.task_name_deleted) }} ${compactDurationString(it.durationMillis)}"
+                }
                 Text(
-                    "Top: " + uiState.stats.topTasks.joinToString { "${it.taskName} ${DurationFormatter.compact(it.durationMillis)}" },
+                    stringResource(R.string.metric_top, topTasksSummary),
                     style = MaterialTheme.typography.bodyMedium,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
@@ -195,10 +204,10 @@ private fun NotificationPermissionCard(onRequest: () -> Unit) {
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Column(Modifier.weight(1f)) {
-                Text("Notifications are off", fontWeight = FontWeight.Bold)
-                Text("Background countdown and missed-task alerts may be limited.", style = MaterialTheme.typography.bodySmall)
+                Text(stringResource(R.string.notifications_off_title), fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.notifications_off_message), style = MaterialTheme.typography.bodySmall)
             }
-            Button(onClick = onRequest) { Text("Enable") }
+            Button(onClick = onRequest) { Text(stringResource(R.string.action_enable)) }
         }
     }
 }
@@ -215,7 +224,7 @@ private fun ServiceWarningCard(message: String) {
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            Text("Background service warning", fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.background_service_warning_title), fontWeight = FontWeight.Bold)
             Text(message, style = MaterialTheme.typography.bodySmall)
         }
     }
@@ -225,7 +234,10 @@ private fun ServiceWarningCard(message: String) {
 private fun WeeklyChart(uiState: TimerUiState) {
     Card(shape = RoundedCornerShape(24.dp)) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            SectionHeader("Last 7 days", "Tracked duration and task results")
+            SectionHeader(
+                stringResource(R.string.chart_last_seven_days_title),
+                stringResource(R.string.chart_last_seven_days_subtitle)
+            )
             val maxMillis = max(1L, uiState.stats.lastSevenDays.maxOfOrNull { it.trackedMillis } ?: 1L)
             Canvas(
                 modifier = Modifier
@@ -277,6 +289,7 @@ private fun TaskCard(
     onArchive: (String) -> Unit
 ) {
     val instance = model.instance
+    val typeText = typeLabel(instance.type)
     Card(
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest)
@@ -291,7 +304,7 @@ private fun TaskCard(
                 Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
                     Text(instance.nameSnapshot, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                    Text("${typeLabel(instance.type)} / ${model.statusText}", style = MaterialTheme.typography.bodySmall)
+                    Text("$typeText / ${model.statusText}", style = MaterialTheme.typography.bodySmall)
                     model.windowText?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
                 }
                 if (instance.type != TaskTypes.TIME_WINDOW) {
@@ -332,41 +345,41 @@ private fun TaskActions(
         when (type) {
             TaskTypes.TIME_WINDOW -> when (status) {
                 TaskStatuses.READY -> {
-                    Button(onClick = { onComplete(instanceId) }) { Text("Complete") }
-                    OutlinedButton(onClick = { onCancel(instanceId) }) { Text("Cancel") }
+                    Button(onClick = { onComplete(instanceId) }) { Text(stringResource(R.string.action_complete)) }
+                    OutlinedButton(onClick = { onCancel(instanceId) }) { Text(stringResource(R.string.action_cancel)) }
                 }
-                TaskStatuses.PLANNED -> OutlinedButton(onClick = { onCancel(instanceId) }) { Text("Cancel") }
-                TaskStatuses.COMPLETED, TaskStatuses.MISSED, TaskStatuses.CANCELLED -> TextButton(onClick = { onArchive(instanceId) }) { Text("Archive") }
+                TaskStatuses.PLANNED -> OutlinedButton(onClick = { onCancel(instanceId) }) { Text(stringResource(R.string.action_cancel)) }
+                TaskStatuses.COMPLETED, TaskStatuses.MISSED, TaskStatuses.CANCELLED -> TextButton(onClick = { onArchive(instanceId) }) { Text(stringResource(R.string.action_archive)) }
             }
             TaskTypes.COUNT_UP -> when (status) {
                 TaskStatuses.READY -> {
-                    Button(onClick = { onStart(instanceId) }) { Text("Start") }
-                    OutlinedButton(onClick = { onCancel(instanceId) }) { Text("Cancel") }
+                    Button(onClick = { onStart(instanceId) }) { Text(stringResource(R.string.action_start)) }
+                    OutlinedButton(onClick = { onCancel(instanceId) }) { Text(stringResource(R.string.action_cancel)) }
                 }
                 TaskStatuses.RUNNING -> {
-                    Button(onClick = { onPause(instanceId) }) { Text("Pause") }
-                    OutlinedButton(onClick = { onComplete(instanceId) }) { Text("Complete") }
+                    Button(onClick = { onPause(instanceId) }) { Text(stringResource(R.string.action_pause)) }
+                    OutlinedButton(onClick = { onComplete(instanceId) }) { Text(stringResource(R.string.action_complete)) }
                 }
                 TaskStatuses.PAUSED -> {
-                    Button(onClick = { onResume(instanceId) }) { Text("Resume") }
-                    OutlinedButton(onClick = { onComplete(instanceId) }) { Text("Complete") }
+                    Button(onClick = { onResume(instanceId) }) { Text(stringResource(R.string.action_resume)) }
+                    OutlinedButton(onClick = { onComplete(instanceId) }) { Text(stringResource(R.string.action_complete)) }
                 }
-                TaskStatuses.COMPLETED, TaskStatuses.CANCELLED -> TextButton(onClick = { onArchive(instanceId) }) { Text("Archive") }
+                TaskStatuses.COMPLETED, TaskStatuses.CANCELLED -> TextButton(onClick = { onArchive(instanceId) }) { Text(stringResource(R.string.action_archive)) }
             }
             TaskTypes.COUNT_DOWN -> when (status) {
                 TaskStatuses.READY -> {
-                    Button(onClick = { onStart(instanceId) }) { Text("Start") }
-                    OutlinedButton(onClick = { onCancel(instanceId) }) { Text("Cancel") }
+                    Button(onClick = { onStart(instanceId) }) { Text(stringResource(R.string.action_start)) }
+                    OutlinedButton(onClick = { onCancel(instanceId) }) { Text(stringResource(R.string.action_cancel)) }
                 }
                 TaskStatuses.RUNNING -> {
-                    Button(onClick = { onPause(instanceId) }) { Text("Pause") }
-                    OutlinedButton(onClick = { onCancel(instanceId) }) { Text("Cancel") }
+                    Button(onClick = { onPause(instanceId) }) { Text(stringResource(R.string.action_pause)) }
+                    OutlinedButton(onClick = { onCancel(instanceId) }) { Text(stringResource(R.string.action_cancel)) }
                 }
                 TaskStatuses.PAUSED -> {
-                    Button(onClick = { onResume(instanceId) }) { Text("Resume") }
-                    OutlinedButton(onClick = { onCancel(instanceId) }) { Text("Cancel") }
+                    Button(onClick = { onResume(instanceId) }) { Text(stringResource(R.string.action_resume)) }
+                    OutlinedButton(onClick = { onCancel(instanceId) }) { Text(stringResource(R.string.action_cancel)) }
                 }
-                TaskStatuses.COMPLETED, TaskStatuses.CANCELLED -> TextButton(onClick = { onArchive(instanceId) }) { Text("Archive") }
+                TaskStatuses.COMPLETED, TaskStatuses.CANCELLED -> TextButton(onClick = { onArchive(instanceId) }) { Text(stringResource(R.string.action_archive)) }
             }
         }
     }
@@ -387,25 +400,25 @@ private fun CreateTaskDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("New daily task") },
+        title = { Text(stringResource(R.string.dialog_new_task)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("Task name") },
+                    label = { Text(stringResource(R.string.field_task_name)) },
                     singleLine = true
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(selected = type == TaskTypes.COUNT_UP, onClick = { type = TaskTypes.COUNT_UP }, label = { Text("Count up") })
-                    FilterChip(selected = type == TaskTypes.COUNT_DOWN, onClick = { type = TaskTypes.COUNT_DOWN }, label = { Text("Countdown") })
-                    FilterChip(selected = type == TaskTypes.TIME_WINDOW, onClick = { type = TaskTypes.TIME_WINDOW }, label = { Text("Window") })
+                    FilterChip(selected = type == TaskTypes.COUNT_UP, onClick = { type = TaskTypes.COUNT_UP }, label = { Text(stringResource(R.string.task_type_count_up)) })
+                    FilterChip(selected = type == TaskTypes.COUNT_DOWN, onClick = { type = TaskTypes.COUNT_DOWN }, label = { Text(stringResource(R.string.task_type_count_down)) })
+                    FilterChip(selected = type == TaskTypes.TIME_WINDOW, onClick = { type = TaskTypes.TIME_WINDOW }, label = { Text(stringResource(R.string.task_type_time_window_short)) })
                 }
                 if (type == TaskTypes.COUNT_DOWN) {
                     OutlinedTextField(
                         value = countdownMinutes,
                         onValueChange = { value -> countdownMinutes = value.filter { it.isDigit() }.take(5) },
-                        label = { Text("Countdown minutes") },
+                        label = { Text(stringResource(R.string.field_countdown_minutes)) },
                         singleLine = true
                     )
                 }
@@ -414,21 +427,21 @@ private fun CreateTaskDialog(
                         OutlinedTextField(
                             value = startTime,
                             onValueChange = { startTime = it.take(5) },
-                            label = { Text("Start HH:mm") },
+                            label = { Text(stringResource(R.string.field_start_time)) },
                             singleLine = true,
                             modifier = Modifier.weight(1f)
                         )
                         OutlinedTextField(
                             value = endTime,
                             onValueChange = { endTime = it.take(5) },
-                            label = { Text("End HH:mm") },
+                            label = { Text(stringResource(R.string.field_end_time)) },
                             singleLine = true,
                             modifier = Modifier.weight(1f)
                         )
                     }
                     if (!timeWindowInputValid) {
                         Text(
-                            "Use HH:mm between 00:00 and 23:59.",
+                            stringResource(R.string.field_time_validation),
                             color = MaterialTheme.colorScheme.error,
                             style = MaterialTheme.typography.bodySmall
                         )
@@ -448,9 +461,9 @@ private fun CreateTaskDialog(
                         endTime
                     )
                 }
-            ) { Text("Create") }
+            ) { Text(stringResource(R.string.action_create)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } }
     )
 }
 
@@ -464,9 +477,9 @@ private fun EmptyState(onCreate: () -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text("No tasks today", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-            Text("Create count-up timers, countdowns, or scheduled time-window tasks.")
-            Button(onClick = onCreate) { Text("Create first task") }
+            Text(stringResource(R.string.empty_no_tasks_today), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.empty_no_tasks_message))
+            Button(onClick = onCreate) { Text(stringResource(R.string.action_create_first_task)) }
         }
     }
 }
@@ -483,10 +496,11 @@ private fun SectionHeader(title: String, subtitle: String) {
     }
 }
 
+@Composable
 private fun typeLabel(type: String): String = when (type) {
-    TaskTypes.COUNT_DOWN -> "Countdown"
-    TaskTypes.TIME_WINDOW -> "Time window"
-    else -> "Count up"
+    TaskTypes.COUNT_DOWN -> stringResource(R.string.task_type_count_down)
+    TaskTypes.TIME_WINDOW -> stringResource(R.string.task_type_time_window)
+    else -> stringResource(R.string.task_type_count_up)
 }
 
 private fun isValidClockTime(value: String): Boolean {
@@ -495,4 +509,16 @@ private fun isValidClockTime(value: String): Boolean {
     val hour = parts[0].toIntOrNull() ?: return false
     val minute = parts[1].toIntOrNull() ?: return false
     return hour in 0..23 && minute in 0..59
+}
+
+@Composable
+private fun compactDurationString(millis: Long): String {
+    val totalMinutes = max(0L, millis) / 60_000L
+    val hours = totalMinutes / 60L
+    val minutes = totalMinutes % 60L
+    return when {
+        hours > 0L && minutes > 0L -> stringResource(R.string.duration_hours_minutes, hours, minutes)
+        hours > 0L -> stringResource(R.string.duration_hours_only, hours)
+        else -> stringResource(R.string.duration_minutes_only, minutes)
+    }
 }

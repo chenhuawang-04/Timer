@@ -1,4 +1,88 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Timer</string>
+
+    <string name="dashboard_title">Timer</string>
+    <string name="dashboard_subtitle">Daily tasks / timers / time windows</string>
+    <string name="section_today_tasks">Today&#39;s tasks</string>
+    <string name="today_tasks_subtitle_empty">Create a task to start</string>
+    <string name="today_tasks_subtitle_count">%1$d tasks</string>
+    <string name="metric_tasks">Tasks</string>
+    <string name="metric_done">Done</string>
+    <string name="metric_missed">Missed</string>
+    <string name="metric_week">Week</string>
+    <string name="metric_month">Month</string>
+    <string name="metric_window">Window</string>
+    <string name="metric_top">Top: %1$s</string>
+
+    <string name="notifications_off_title">Notifications are off</string>
+    <string name="notifications_off_message">Background countdown and missed-task alerts may be limited.</string>
+    <string name="action_enable">Enable</string>
+    <string name="background_service_warning_title">Background service warning</string>
+    <string name="background_service_start_failed">Background timer service did not start (%1$s). Timing state is saved, but background alerts may be limited.</string>
+
+    <string name="chart_last_seven_days_title">Last 7 days</string>
+    <string name="chart_last_seven_days_subtitle">Tracked duration and task results</string>
+
+    <string name="action_complete">Complete</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_archive">Archive</string>
+    <string name="action_start">Start</string>
+    <string name="action_pause">Pause</string>
+    <string name="action_resume">Resume</string>
+    <string name="action_create">Create</string>
+    <string name="action_create_first_task">Create first task</string>
+
+    <string name="dialog_new_task">New daily task</string>
+    <string name="field_task_name">Task name</string>
+    <string name="task_type_count_up">Count up</string>
+    <string name="task_type_count_down">Countdown</string>
+    <string name="task_type_time_window">Time window</string>
+    <string name="task_type_time_window_short">Window</string>
+    <string name="field_countdown_minutes">Countdown minutes</string>
+    <string name="field_start_time">Start HH:mm</string>
+    <string name="field_end_time">End HH:mm</string>
+    <string name="field_time_validation">Use HH:mm between 00:00 and 23:59.</string>
+    <string name="task_name_untitled">Untitled task</string>
+    <string name="task_name_deleted">Deleted task</string>
+
+    <string name="empty_no_tasks_today">No tasks today</string>
+    <string name="empty_no_tasks_message">Create count-up timers, countdowns, or scheduled time-window tasks.</string>
+
+    <string name="status_planned">Planned</string>
+    <string name="status_ready">Ready</string>
+    <string name="status_running">Running</string>
+    <string name="status_paused">Paused</string>
+    <string name="status_completed">Completed</string>
+    <string name="status_missed">Missed</string>
+    <string name="status_cancelled">Cancelled</string>
+    <string name="status_unknown">Unknown</string>
+
+    <string name="window_no_start_time">No start time</string>
+    <string name="window_no_end_time">No end time</string>
+    <string name="window_status_completed">%1$s-%2$s / completed</string>
+    <string name="window_status_missed">%1$s-%2$s / missed</string>
+    <string name="window_status_starts_later">%1$s-%2$s / starts later</string>
+    <string name="window_status_complete_now">%1$s-%2$s / complete now</string>
+    <string name="window_status_overdue">%1$s-%2$s / overdue</string>
+
+    <string name="duration_hours_minutes">%1$dh %2$dm</string>
+    <string name="duration_hours_only">%1$dh</string>
+    <string name="duration_minutes_only">%1$dm</string>
+
+    <string name="notification_channel_running">Running timers</string>
+    <string name="notification_channel_running_description">Shows active long-running timer tasks</string>
+    <string name="notification_channel_alerts">Task alerts</string>
+    <string name="notification_channel_alerts_description">Alerts for countdown completion and missed time-window tasks</string>
+    <string name="notification_foreground_title_standby">Timer standby</string>
+    <string name="notification_foreground_title_single_fallback">Timer running</string>
+    <string name="notification_foreground_title_multi">%1$d timers running</string>
+    <string name="notification_foreground_text_sync">Synchronizing local task state...</string>
+    <string name="notification_foreground_prefix_remaining">Remaining %1$s</string>
+    <string name="notification_foreground_prefix_elapsed">Elapsed %1$s</string>
+    <string name="notification_bootstrap_title">Timer is restoring</string>
+    <string name="notification_countdown_complete_title">Countdown complete</string>
+    <string name="notification_countdown_complete_text">%1$s is complete</string>
+    <string name="notification_task_missed_title">Task missed</string>
+    <string name="notification_task_missed_text">%1$s was not completed in time</string>
 </resources>

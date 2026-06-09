@@ -156,7 +156,7 @@ object StatsCalculator {
             .map { (instanceId, duration) ->
                 TaskTotal(
                     instanceId = instanceId,
-                    taskName = instanceById[instanceId]?.nameSnapshot ?: "Deleted task",
+                    taskName = instanceById[instanceId]?.nameSnapshot.orEmpty(),
                     durationMillis = duration
                 )
             }

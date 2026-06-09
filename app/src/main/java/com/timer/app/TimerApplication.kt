@@ -3,6 +3,7 @@ package com.timer.app
 import android.app.Application
 import android.content.Context
 import androidx.room.Room
+import com.timer.app.R
 import com.timer.app.data.RoomTimerRepository
 import com.timer.app.data.TimerDatabase
 import com.timer.app.domain.AndroidTimerClock
@@ -52,7 +53,8 @@ class AppContainer(context: Context) {
     val repository: RoomTimerRepository = RoomTimerRepository(
         database = database,
         clock = AndroidTimerClock(),
-        idProvider = UuidIdProvider()
+        idProvider = UuidIdProvider(),
+        untitledTaskName = appContext.getString(R.string.task_name_untitled)
     )
 }
 

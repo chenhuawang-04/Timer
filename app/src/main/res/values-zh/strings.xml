@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">计时</string>
+
+    <string name="dashboard_title">计时</string>
+    <string name="dashboard_subtitle">每日任务 / 正计时 / 倒计时 / 时间段</string>
+    <string name="section_today_tasks">今日任务</string>
+    <string name="today_tasks_subtitle_empty">创建一个任务开始</string>
+    <string name="today_tasks_subtitle_count">%1$d 个任务</string>
+    <string name="metric_tasks">任务</string>
+    <string name="metric_done">完成</string>
+    <string name="metric_missed">未完成</string>
+    <string name="metric_week">本周</string>
+    <string name="metric_month">本月</string>
+    <string name="metric_window">窗口</string>
+    <string name="metric_top">最多：%1$s</string>
+
+    <string name="notifications_off_title">通知未开启</string>
+    <string name="notifications_off_message">后台倒计时完成和错过任务提醒可能受限。</string>
+    <string name="action_enable">开启</string>
+    <string name="background_service_warning_title">后台服务警告</string>
+    <string name="background_service_start_failed">后台计时服务启动失败（%1$s）。计时状态已保存，但后台提醒可能受限。</string>
+
+    <string name="chart_last_seven_days_title">最近 7 天</string>
+    <string name="chart_last_seven_days_subtitle">追踪时长与任务结果</string>
+
+    <string name="action_complete">完成</string>
+    <string name="action_cancel">取消</string>
+    <string name="action_archive">归档</string>
+    <string name="action_start">开始</string>
+    <string name="action_pause">暂停</string>
+    <string name="action_resume">继续</string>
+    <string name="action_create">创建</string>
+    <string name="action_create_first_task">创建第一个任务</string>
+
+    <string name="dialog_new_task">新建每日任务</string>
+    <string name="field_task_name">任务名</string>
+    <string name="task_type_count_up">正计时</string>
+    <string name="task_type_count_down">倒计时</string>
+    <string name="task_type_time_window">时间段</string>
+    <string name="task_type_time_window_short">时间段</string>
+    <string name="field_countdown_minutes">倒计时分钟数</string>
+    <string name="field_start_time">开始 HH:mm</string>
+    <string name="field_end_time">结束 HH:mm</string>
+    <string name="field_time_validation">请输入 00:00 到 23:59 之间的 HH:mm 时间。</string>
+    <string name="task_name_untitled">未命名任务</string>
+    <string name="task_name_deleted">已删除任务</string>
+
+    <string name="empty_no_tasks_today">今天还没有任务</string>
+    <string name="empty_no_tasks_message">创建正计时、倒计时或固定时间段任务。</string>
+
+    <string name="status_planned">未开始</string>
+    <string name="status_ready">就绪</string>
+    <string name="status_running">进行中</string>
+    <string name="status_paused">已暂停</string>
+    <string name="status_completed">已完成</string>
+    <string name="status_missed">已错过</string>
+    <string name="status_cancelled">已取消</string>
+    <string name="status_unknown">未知</string>
+
+    <string name="window_no_start_time">未设置开始时间</string>
+    <string name="window_no_end_time">未设置结束时间</string>
+    <string name="window_status_completed">%1$s-%2$s / 已完成</string>
+    <string name="window_status_missed">%1$s-%2$s / 已错过</string>
+    <string name="window_status_starts_later">%1$s-%2$s / 尚未开始</string>
+    <string name="window_status_complete_now">%1$s-%2$s / 可立即完成</string>
+    <string name="window_status_overdue">%1$s-%2$s / 已超时</string>
+
+    <string name="duration_hours_minutes">%1$d小时 %2$d分</string>
+    <string name="duration_hours_only">%1$d小时</string>
+    <string name="duration_minutes_only">%1$d分</string>
+
+    <string name="notification_channel_running">运行中的计时</string>
+    <string name="notification_channel_running_description">显示当前正在运行的长时计时任务</string>
+    <string name="notification_channel_alerts">任务提醒</string>
+    <string name="notification_channel_alerts_description">用于倒计时完成和时间段任务错过提醒</string>
+    <string name="notification_foreground_title_standby">计时待命中</string>
+    <string name="notification_foreground_title_single_fallback">计时进行中</string>
+    <string name="notification_foreground_title_multi">%1$d 个计时正在运行</string>
+    <string name="notification_foreground_text_sync">正在同步本地任务状态…</string>
+    <string name="notification_foreground_prefix_remaining">剩余 %1$s</string>
+    <string name="notification_foreground_prefix_elapsed">已计时 %1$s</string>
+    <string name="notification_bootstrap_title">正在恢复计时</string>
+    <string name="notification_countdown_complete_title">倒计时完成</string>
+    <string name="notification_countdown_complete_text">%1$s 已完成</string>
+    <string name="notification_task_missed_title">任务已错过</string>
+    <string name="notification_task_missed_text">%1$s 未在规定时间内完成</string>
+</resources>

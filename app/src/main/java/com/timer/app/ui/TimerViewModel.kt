@@ -5,6 +5,7 @@ import android.os.SystemClock
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.timer.app.R
 import com.timer.app.data.DashboardSnapshot
 import com.timer.app.data.RoomTimerRepository
 import com.timer.app.data.TaskInstanceEntity
@@ -165,9 +166,10 @@ class TimerViewModel(
     private fun handleServiceStartResult(result: TimerForegroundServiceStartResult) {
         serviceWarningMessage.value = when (result) {
             TimerForegroundServiceStartResult.Started -> null
-            is TimerForegroundServiceStartResult.Failed ->
-                "Background timer service did not start (${result.reason}). " +
-                    "Timing state is saved, but background alerts may be limited."
+            is TimerForegroundServiceStartResult.Failed -> appContext.getString(
+                R.string.background_service_start_failed,
+                result.reason
+            )
         }
     }
 
@@ -232,14 +234,14 @@ class TimerViewModel(
     }
 
     private fun statusText(status: String): String = when (status) {
-        TaskStatuses.PLANNED -> "Planned"
-        TaskStatuses.READY -> "Ready"
-        TaskStatuses.RUNNING -> "Running"
-        TaskStatuses.PAUSED -> "Paused"
-        TaskStatuses.COMPLETED -> "Completed"
-        TaskStatuses.MISSED -> "Missed"
-        TaskStatuses.CANCELLED -> "Cancelled"
-        else -> "Unknown"
+        TaskStatuses.PLANNED -> appContext.getString(R.string.status_planned)
+        TaskStatuses.READY -> appContext.getString(R.string.status_ready)
+        TaskStatuses.RUNNING -> appContext.getString(R.string.status_running)
+        TaskStatuses.PAUSED -> appContext.getString(R.string.status_paused)
+        TaskStatuses.COMPLETED -> appContext.getString(R.string.status_completed)
+        TaskStatuses.MISSED -> appContext.getString(R.string.status_missed)
+        TaskStatuses.CANCELLED -> appContext.getString(R.string.status_cancelled)
+        else -> appContext.getString(R.string.status_unknown)
     }
 
     private fun actionStatus(instance: TaskInstanceEntity, nowEpoch: Long): String {
@@ -251,16 +253,16 @@ class TimerViewModel(
 
     private fun windowText(instance: TaskInstanceEntity, nowEpoch: Long): String? {
         if (instance.type != TaskTypes.TIME_WINDOW) return null
-        val start = instance.plannedStartEpochMillis ?: return "No start time"
-        val end = instance.plannedEndEpochMillis ?: return "No end time"
+        val start = instance.plannedStartEpochMillis ?: return appContext.getString(R.string.window_no_start_time)
+        val end = instance.plannedEndEpochMillis ?: return appContext.getString(R.string.window_no_end_time)
         val startText = java.time.Instant.ofEpochMilli(start).atZone(java.time.ZoneId.systemDefault()).toLocalTime().toString().take(5)
         val endText = java.time.Instant.ofEpochMilli(end).atZone(java.time.ZoneId.systemDefault()).toLocalTime().toString().take(5)
         return when {
-            instance.status == TaskStatuses.COMPLETED -> "$startText-$endText / completed"
-            instance.status == TaskStatuses.MISSED -> "$startText-$endText / missed"
-            nowEpoch < start -> "$startText-$endText / starts later"
-            nowEpoch < end -> "$startText-$endText / complete now"
-            else -> "$startText-$endText / overdue"
+            instance.status == TaskStatuses.COMPLETED -> appContext.getString(R.string.window_status_completed, startText, endText)
+            instance.status == TaskStatuses.MISSED -> appContext.getString(R.string.window_status_missed, startText, endText)
+            nowEpoch < start -> appContext.getString(R.string.window_status_starts_later, startText, endText)
+            nowEpoch < end -> appContext.getString(R.string.window_status_complete_now, startText, endText)
+            else -> appContext.getString(R.string.window_status_overdue, startText, endText)
         }
     }
 
