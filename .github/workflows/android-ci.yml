@@ -28,15 +28,18 @@ jobs:
       - name: Accept Android SDK licenses and install API 35
         shell: bash
         run: |
-          yes | sdkmanager --licenses >/dev/null || {
-            status=$?
-            # GitHub's bash shell enables pipefail. sdkmanager may exit 0 after
-            # accepting licenses while `yes` receives SIGPIPE and makes the
-            # pipeline report 141. Treat only that known benign status as OK.
-            if [ "$status" -ne 141 ]; then
-              exit "$status"
-            fi
-          }
+          # GitHub's bash shell enables `-e -o pipefail`. `sdkmanager` can
+          # finish license acceptance successfully while `yes` receives SIGPIPE
+          # and exits non-zero. Ignore only `yes`; still fail if sdkmanager fails.
+          set +e
+          set +o pipefail
+          yes 2>/dev/null | sdkmanager --licenses >/dev/null
+          sdkmanager_license_status=${PIPESTATUS[1]}
+          set -o pipefail
+          set -e
+          if [ "$sdkmanager_license_status" -ne 0 ]; then
+            exit "$sdkmanager_license_status"
+          fi
           sdkmanager "platforms;android-35" "build-tools;35.0.0"
 
       - name: Set up Gradle
