@@ -172,6 +172,14 @@ private data class UiControlState(
     val statusMessage: String?
 )
 
+private data class UiRenderInputs(
+    val snapshot: com.timer.app.data.AppSnapshot,
+    val preferences: AppPreferencesSnapshot,
+    val credentialState: com.timer.app.sync.CloudSyncCredentialSnapshot,
+    val syncInProgress: Boolean,
+    val controlState: UiControlState
+)
+
 class TimerViewModel(
     private val appContext: Context,
     private val container: AppContainer
@@ -215,15 +223,30 @@ class TimerViewModel(
         }
     }
 
-    val uiState = combine(
+    private val uiRenderInputs = combine(
         repository.observeAppSnapshot(),
         container.preferencesRepository.preferences,
         container.cloudSyncCoordinator.credentialState,
         container.cloudSyncCoordinator.syncInProgress,
-        controls,
-        ticker
-    ) { snapshot, preferences, credentialState, syncInProgress, controlState, _ ->
-        buildUiState(snapshot, preferences, credentialState, syncInProgress, controlState)
+        controls
+    ) { snapshot, preferences, credentialState, syncInProgress, controlState ->
+        UiRenderInputs(
+            snapshot = snapshot,
+            preferences = preferences,
+            credentialState = credentialState,
+            syncInProgress = syncInProgress,
+            controlState = controlState
+        )
+    }
+
+    val uiState = combine(uiRenderInputs, ticker) { inputs, _ ->
+        buildUiState(
+            snapshot = inputs.snapshot,
+            preferences = inputs.preferences,
+            credentialState = inputs.credentialState,
+            syncInProgress = inputs.syncInProgress,
+            controlState = inputs.controlState
+        )
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000L),

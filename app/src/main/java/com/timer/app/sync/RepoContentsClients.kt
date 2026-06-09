@@ -18,8 +18,8 @@ private class RepoApiException(
     override val message: String
 ) : IllegalStateException(message)
 
-internal class RepoContentsClientFactory {
-    fun create(provider: String): RepoContentsClient = when (provider) {
+class RepoContentsClientFactory {
+    internal fun create(provider: String): RepoContentsClient = when (provider) {
         CloudSyncProviders.GITHUB -> GitHubRepoContentsClient()
         else -> GiteeRepoContentsClient()
     }
