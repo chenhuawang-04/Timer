@@ -1,5 +1,6 @@
-﻿package com.timer.app.domain
+package com.timer.app.domain
 
+import com.timer.app.data.SessionModes
 import com.timer.app.data.TaskInstanceEntity
 import com.timer.app.data.TaskRuntimeStateEntity
 import com.timer.app.data.TaskStatuses
@@ -44,6 +45,27 @@ class TimerMathTest {
 
         assertEquals(0L, TimerMath.remainingMillis(instance, state, 120_000L))
         assertTrue(TimerMath.isExpiredCountdown(instance, state, 120_000L))
+    }
+
+    @Test
+    fun pomodoroCountdownUsesComputedProgramDuration() {
+        val instance = taskInstance(
+            type = TaskTypes.COUNT_DOWN,
+            sessionMode = SessionModes.POMODORO,
+            pomodoroWorkMinutes = 25,
+            pomodoroBreakMinutes = 5,
+            pomodoroCycles = 2,
+            targetDurationMillis = 3_300_000L
+        )
+        val state = runtimeState(
+            instanceId = instance.id,
+            status = TaskStatuses.RUNNING,
+            accumulatedMillis = 0L,
+            startedAtElapsedRealtimeMillis = 100_000L
+        )
+
+        // 25 + 5 + 25 = 55 minutes total. After 10 minutes, 45 remain.
+        assertEquals(45 * 60_000L, TimerMath.remainingMillis(instance, state, 700_000L))
     }
 
     @Test
@@ -95,7 +117,11 @@ class TimerMathTest {
         id: String = "task",
         type: String,
         status: String = TaskStatuses.READY,
-        targetDurationMillis: Long? = null
+        targetDurationMillis: Long? = null,
+        sessionMode: String = SessionModes.STANDARD,
+        pomodoroWorkMinutes: Int? = null,
+        pomodoroBreakMinutes: Int? = null,
+        pomodoroCycles: Int? = null
     ) = TaskInstanceEntity(
         id = id,
         templateId = null,
@@ -104,10 +130,26 @@ class TimerMathTest {
         type = type,
         status = status,
         targetDurationMillis = targetDurationMillis,
+        preferredStartEpochMillis = null,
         plannedStartEpochMillis = null,
         plannedEndEpochMillis = null,
         colorArgb = 0xFF0284C7,
-        tagSnapshot = null,
+        categoryIdSnapshot = null,
+        categoryNameSnapshot = null,
+        projectNameSnapshot = null,
+        tagsSnapshot = null,
+        noteSnapshot = null,
+        priority = com.timer.app.data.TaskPriorities.MEDIUM,
+        remindersEnabled = false,
+        remindAtStart = false,
+        remindBeforeEndMinutes = null,
+        remindAtDeadline = false,
+        countTowardGoals = true,
+        sessionMode = sessionMode,
+        pomodoroWorkMinutes = pomodoroWorkMinutes,
+        pomodoroBreakMinutes = pomodoroBreakMinutes,
+        pomodoroCycles = pomodoroCycles,
+        sortOrder = 0,
         createdAtEpochMillis = 0L,
         updatedAtEpochMillis = 0L,
         completedAtEpochMillis = null,
@@ -115,6 +157,7 @@ class TimerMathTest {
         cancelledAtEpochMillis = null,
         completionSource = null,
         missSource = null,
+        resultNote = null,
         archived = false,
         archivedAtEpochMillis = null
     )

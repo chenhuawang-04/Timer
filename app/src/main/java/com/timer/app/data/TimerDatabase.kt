@@ -5,16 +5,20 @@ import androidx.room.RoomDatabase
 
 @Database(
     entities = [
+        TaskCategoryEntity::class,
+        GoalEntity::class,
         TaskTemplateEntity::class,
         TaskInstanceEntity::class,
         TaskRuntimeStateEntity::class,
         TaskSessionEntity::class,
         TaskEventLogEntity::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = true
 )
 abstract class TimerDatabase : RoomDatabase() {
+    abstract fun categoryDao(): TaskCategoryDao
+    abstract fun goalDao(): GoalDao
     abstract fun templateDao(): TaskTemplateDao
     abstract fun instanceDao(): TaskInstanceDao
     abstract fun runtimeStateDao(): TaskRuntimeStateDao

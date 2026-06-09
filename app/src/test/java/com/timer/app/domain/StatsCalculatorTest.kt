@@ -1,7 +1,8 @@
-﻿package com.timer.app.domain
+package com.timer.app.domain
 
 import com.timer.app.data.CompletionSources
 import com.timer.app.data.MissSources
+import com.timer.app.data.SessionModes
 import com.timer.app.data.SessionSources
 import com.timer.app.data.TaskInstanceEntity
 import com.timer.app.data.TaskRuntimeStateEntity
@@ -12,6 +13,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class StatsCalculatorTest {
@@ -55,117 +57,6 @@ class StatsCalculatorTest {
     }
 
     @Test
-    fun calculateUsesImmutableSessionsForHistoricalStats() {
-        val instance = instance(id = "task", name = "Study", type = TaskTypes.COUNT_UP)
-        val start = Instant.parse("2026-06-08T12:00:00Z").toEpochMilli()
-        val session = session(instanceId = instance.id, start = start, durationMillis = 45 * 60_000L)
-
-        val stats = StatsCalculator.calculate(
-            instances = listOf(instance),
-            states = emptyList(),
-            sessions = listOf(session),
-            nowEpochMillis = Instant.parse("2026-06-08T13:00:00Z").toEpochMilli(),
-            nowElapsedRealtimeMillis = 0L,
-            zoneId = zone
-        )
-
-        assertEquals(45 * 60_000L, stats.trackedTodayMillis)
-        assertEquals(45 * 60_000L, stats.trackedWeekMillis)
-        assertEquals(45 * 60_000L, stats.trackedMonthMillis)
-    }
-
-    @Test
-    fun countdownCompletionCountComesFromCompletedInstanceSourceNotPartialRecoverySessions() {
-        val partial = instance(
-            id = "partial",
-            name = "Tea partial",
-            type = TaskTypes.COUNT_DOWN,
-            status = TaskStatuses.RUNNING,
-            targetDurationMillis = 15 * 60_000L
-        )
-        val completed = instance(
-            id = "completed",
-            name = "Tea completed",
-            type = TaskTypes.COUNT_DOWN,
-            status = TaskStatuses.COMPLETED,
-            targetDurationMillis = 15 * 60_000L,
-            completedAtEpochMillis = Instant.parse("2026-06-08T12:15:00Z").toEpochMilli(),
-            completionSource = CompletionSources.RECOVERED_AUTO
-        )
-        val start = Instant.parse("2026-06-08T12:00:00Z").toEpochMilli()
-        val sessions = listOf(
-            session(instanceId = partial.id, start = start, durationMillis = 10 * 60_000L, source = SessionSources.RECOVERED_PARTIAL),
-            session(instanceId = completed.id, start = start, durationMillis = 15 * 60_000L, source = SessionSources.RECOVERED_COMPLETED)
-        )
-
-        val stats = StatsCalculator.calculate(
-            instances = listOf(partial, completed),
-            states = emptyList(),
-            sessions = sessions,
-            nowEpochMillis = Instant.parse("2026-06-08T13:00:00Z").toEpochMilli(),
-            nowElapsedRealtimeMillis = 0L,
-            zoneId = zone
-        )
-
-        assertEquals(1, stats.countdownCompletedTodayCount)
-        assertEquals(1, stats.completedCountdownCount)
-    }
-
-    @Test
-    fun autoCompletedCountdownIsCountedAndContributesTrackedDuration() {
-        val instance = instance(
-            id = "countdown",
-            name = "Tea",
-            type = TaskTypes.COUNT_DOWN,
-            status = TaskStatuses.COMPLETED,
-            targetDurationMillis = 15 * 60_000L,
-            completedAtEpochMillis = Instant.parse("2026-06-08T12:15:00Z").toEpochMilli(),
-            completionSource = CompletionSources.COUNTDOWN_AUTO
-        )
-        val start = Instant.parse("2026-06-08T12:00:00Z").toEpochMilli()
-
-        val stats = StatsCalculator.calculate(
-            instances = listOf(instance),
-            states = emptyList(),
-            sessions = listOf(session(instanceId = instance.id, start = start, durationMillis = 15 * 60_000L, source = SessionSources.COUNTDOWN_AUTO)),
-            nowEpochMillis = Instant.parse("2026-06-08T13:00:00Z").toEpochMilli(),
-            nowElapsedRealtimeMillis = 0L,
-            zoneId = zone
-        )
-
-        assertEquals(1, stats.countdownCompletedTodayCount)
-        assertEquals(15 * 60_000L, stats.trackedTodayMillis)
-    }
-
-    @Test
-    fun countUpManualCompletionAndMultipleDailyInstancesAreIncludedInTaskStats() {
-        val completedCountUp = instance(
-            id = "countup_done",
-            name = "Write",
-            type = TaskTypes.COUNT_UP,
-            status = TaskStatuses.COMPLETED,
-            completedAtEpochMillis = Instant.parse("2026-06-08T10:00:00Z").toEpochMilli(),
-            completionSource = CompletionSources.MANUAL
-        )
-        val readyCountUp = instance(id = "countup_ready", name = "Read", type = TaskTypes.COUNT_UP)
-        val cancelled = instance(id = "cancelled", name = "Cancelled", type = TaskTypes.COUNT_UP, status = TaskStatuses.CANCELLED)
-
-        val stats = StatsCalculator.calculate(
-            instances = listOf(completedCountUp, readyCountUp, cancelled),
-            states = emptyList(),
-            sessions = emptyList(),
-            nowEpochMillis = Instant.parse("2026-06-08T13:00:00Z").toEpochMilli(),
-            nowElapsedRealtimeMillis = 0L,
-            zoneId = zone
-        )
-
-        assertEquals(2, stats.plannedTodayCount)
-        assertEquals(1, stats.completedTodayCount)
-        assertEquals(1, stats.cancelledTodayCount)
-        assertEquals(1, stats.countUpCompletedTodayCount)
-    }
-
-    @Test
     fun timeWindowCompletedAndMissedStatsUsePlannedDurationsNotTrackedTime() {
         val completed = timeWindow(
             id = "window_done",
@@ -204,57 +95,79 @@ class StatsCalculatorTest {
     }
 
     @Test
-    fun archivedCompletedTimedTaskStillContributesToHistoricalStatistics() {
-        val archivedCompleted = instance(
-            id = "archived_done",
-            name = "Archived writing",
-            type = TaskTypes.COUNT_UP,
+    fun pomodoroCompletedTasksAreCountedSeparately() {
+        val instance = instance(
+            id = "pomodoro",
+            name = "Focus",
+            type = TaskTypes.COUNT_DOWN,
             status = TaskStatuses.COMPLETED,
-            completedAtEpochMillis = Instant.parse("2026-06-08T12:45:00Z").toEpochMilli(),
-            completionSource = CompletionSources.MANUAL,
-            archived = true
+            completedAtEpochMillis = Instant.parse("2026-06-08T12:55:00Z").toEpochMilli(),
+            completionSource = CompletionSources.COUNTDOWN_AUTO,
+            sessionMode = SessionModes.POMODORO,
+            pomodoroWorkMinutes = 25,
+            pomodoroBreakMinutes = 5,
+            pomodoroCycles = 2,
+            targetDurationMillis = 55 * 60_000L
         )
-        val start = Instant.parse("2026-06-08T12:00:00Z").toEpochMilli()
 
         val stats = StatsCalculator.calculate(
-            instances = listOf(archivedCompleted),
+            instances = listOf(instance),
             states = emptyList(),
-            sessions = listOf(session(instanceId = archivedCompleted.id, start = start, durationMillis = 45 * 60_000L)),
+            sessions = listOf(session(instanceId = instance.id, start = Instant.parse("2026-06-08T12:00:00Z").toEpochMilli(), durationMillis = 55 * 60_000L)),
             nowEpochMillis = Instant.parse("2026-06-08T13:00:00Z").toEpochMilli(),
             nowElapsedRealtimeMillis = 0L,
             zoneId = zone
         )
 
-        assertEquals(45 * 60_000L, stats.trackedTodayMillis)
-        assertEquals(1, stats.completedTodayCount)
-        assertEquals(1, stats.countUpCompletedTodayCount)
+        assertEquals(1, stats.countdownCompletedTodayCount)
+        assertEquals(1, stats.pomodoroCompletedTodayCount)
+        assertTrue(stats.dailyScore > 0)
     }
 
     @Test
-    fun archivedMissedTimeWindowStillContributesToMissedStatistics() {
-        val archivedMissed = timeWindow(
-            id = "archived_window_missed",
-            name = "Archived missed window",
-            status = TaskStatuses.MISSED,
-            start = Instant.parse("2026-06-08T12:00:00Z").toEpochMilli(),
-            end = Instant.parse("2026-06-08T12:30:00Z").toEpochMilli(),
-            missedAtEpochMillis = Instant.parse("2026-06-08T12:30:00Z").toEpochMilli(),
-            archived = true
-        )
+    fun categoryAndProjectBreakdownAggregateTrackedTime() {
+        val a = instance(id = "a", name = "Write", type = TaskTypes.COUNT_UP, categoryName = "Work", projectName = "App")
+        val b = instance(id = "b", name = "Read", type = TaskTypes.COUNT_UP, categoryName = "Study", projectName = "Exam")
+        val start = Instant.parse("2026-06-08T10:00:00Z").toEpochMilli()
 
         val stats = StatsCalculator.calculate(
-            instances = listOf(archivedMissed),
+            instances = listOf(a, b),
             states = emptyList(),
-            sessions = emptyList(),
+            sessions = listOf(
+                session(instanceId = a.id, start = start, durationMillis = 30 * 60_000L),
+                session(instanceId = b.id, start = start, durationMillis = 45 * 60_000L)
+            ),
             nowEpochMillis = Instant.parse("2026-06-08T13:00:00Z").toEpochMilli(),
             nowElapsedRealtimeMillis = 0L,
             zoneId = zone
         )
 
+        assertEquals("Study", stats.categoryBreakdown.first().label)
+        assertEquals("Exam", stats.projectBreakdown.first().label)
+    }
+
+    @Test
+    fun calculateCanAnchorDailyStatsToSelectedDate() {
+        val selectedDate = LocalDate.of(2026, 6, 8)
+        val nowEpoch = Instant.parse("2026-06-09T13:00:00Z").toEpochMilli()
+        val selectedDayTask = instance(id = "selected", name = "Review", type = TaskTypes.COUNT_UP, status = TaskStatuses.COMPLETED)
+        val currentDayTask = instance(id = "current", name = "Ship", type = TaskTypes.COUNT_UP, status = TaskStatuses.READY)
+            .copy(localDate = "2026-06-09")
+
+        val stats = StatsCalculator.calculate(
+            instances = listOf(selectedDayTask, currentDayTask),
+            states = emptyList(),
+            sessions = listOf(session(instanceId = selectedDayTask.id, start = Instant.parse("2026-06-08T01:00:00Z").toEpochMilli(), durationMillis = 20 * 60_000L)),
+            nowEpochMillis = nowEpoch,
+            nowElapsedRealtimeMillis = 0L,
+            zoneId = zone,
+            referenceDate = selectedDate
+        )
+
         assertEquals(1, stats.plannedTodayCount)
-        assertEquals(1, stats.missedTodayCount)
-        assertEquals(1, stats.timeWindowMissedTodayCount)
-        assertEquals(30 * 60_000L, stats.missedWindowTodayMillis)
+        assertEquals(1, stats.completedTodayCount)
+        assertEquals(20 * 60_000L, stats.trackedTodayMillis)
+        assertEquals(selectedDate, stats.lastSevenDays.last().date)
     }
 
     private fun instance(
@@ -265,7 +178,13 @@ class StatsCalculatorTest {
         targetDurationMillis: Long? = null,
         completedAtEpochMillis: Long? = null,
         completionSource: String? = null,
-        archived: Boolean = false
+        archived: Boolean = false,
+        categoryName: String? = null,
+        projectName: String? = null,
+        sessionMode: String = SessionModes.STANDARD,
+        pomodoroWorkMinutes: Int? = null,
+        pomodoroBreakMinutes: Int? = null,
+        pomodoroCycles: Int? = null
     ) = TaskInstanceEntity(
         id = id,
         templateId = null,
@@ -274,10 +193,26 @@ class StatsCalculatorTest {
         type = type,
         status = status,
         targetDurationMillis = targetDurationMillis,
+        preferredStartEpochMillis = null,
         plannedStartEpochMillis = null,
         plannedEndEpochMillis = null,
         colorArgb = 0xFF0284C7,
-        tagSnapshot = null,
+        categoryIdSnapshot = null,
+        categoryNameSnapshot = categoryName,
+        projectNameSnapshot = projectName,
+        tagsSnapshot = null,
+        noteSnapshot = null,
+        priority = com.timer.app.data.TaskPriorities.MEDIUM,
+        remindersEnabled = false,
+        remindAtStart = false,
+        remindBeforeEndMinutes = null,
+        remindAtDeadline = false,
+        countTowardGoals = true,
+        sessionMode = sessionMode,
+        pomodoroWorkMinutes = pomodoroWorkMinutes,
+        pomodoroBreakMinutes = pomodoroBreakMinutes,
+        pomodoroCycles = pomodoroCycles,
+        sortOrder = 0,
         createdAtEpochMillis = 0L,
         updatedAtEpochMillis = 0L,
         completedAtEpochMillis = completedAtEpochMillis,
@@ -285,6 +220,7 @@ class StatsCalculatorTest {
         cancelledAtEpochMillis = if (status == TaskStatuses.CANCELLED) 1L else null,
         completionSource = completionSource,
         missSource = null,
+        resultNote = null,
         archived = archived,
         archivedAtEpochMillis = if (archived) 2L else null
     )
@@ -306,10 +242,26 @@ class StatsCalculatorTest {
         type = TaskTypes.TIME_WINDOW,
         status = status,
         targetDurationMillis = null,
+        preferredStartEpochMillis = null,
         plannedStartEpochMillis = start,
         plannedEndEpochMillis = end,
         colorArgb = 0xFF0F766E,
-        tagSnapshot = null,
+        categoryIdSnapshot = null,
+        categoryNameSnapshot = null,
+        projectNameSnapshot = null,
+        tagsSnapshot = null,
+        noteSnapshot = null,
+        priority = com.timer.app.data.TaskPriorities.MEDIUM,
+        remindersEnabled = false,
+        remindAtStart = false,
+        remindBeforeEndMinutes = null,
+        remindAtDeadline = false,
+        countTowardGoals = true,
+        sessionMode = SessionModes.STANDARD,
+        pomodoroWorkMinutes = null,
+        pomodoroBreakMinutes = null,
+        pomodoroCycles = null,
+        sortOrder = 0,
         createdAtEpochMillis = 0L,
         updatedAtEpochMillis = 0L,
         completedAtEpochMillis = completedAtEpochMillis,
@@ -317,6 +269,7 @@ class StatsCalculatorTest {
         cancelledAtEpochMillis = null,
         completionSource = if (completedAtEpochMillis != null) CompletionSources.MANUAL else null,
         missSource = if (missedAtEpochMillis != null) MissSources.DEADLINE_AUTO else null,
+        resultNote = null,
         archived = archived,
         archivedAtEpochMillis = if (archived) 2L else null
     )

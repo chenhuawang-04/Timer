@@ -1,0 +1,39 @@
+{
+  "task_id": "timer_feature_suite_20260609",
+  "trace_id": "trc_timer_app_20260609_feature_suite",
+  "parent_task_id": null,
+  "stage": "implementation",
+  "objective": "Expand the Android timer app into a modular local-first productivity suite with routines, reminders, widgets, calendar, backup, focus mode, richer insights, settings, categories, goals, audit history, and Chinese-capable resource-driven UI.",
+  "repo": {
+    "name": "Timer",
+    "ref": "main"
+  },
+  "context_refs": [
+    "app/src/main/java/com/timer/app",
+    "docs/adr/2026-06-08-daily-instances-and-time-window-tasks.md",
+    "docs/adr/2026-06-08-timer-architecture.md"
+  ],
+  "constraints": [
+    "No local Gradle build or test execution; CI remains the build and test authority.",
+    "Breaking refactor is allowed; no backward compatibility required.",
+    "Prefer low-overhead background behavior with durable state recovery.",
+    "Maintain Chinese support through Android string resources."
+  ],
+  "allowed_tools": [
+    "shell_command",
+    "apply_patch",
+    "update_plan"
+  ],
+  "approval_policy": {
+    "network": "not required for local implementation",
+    "destructive_actions": "not used",
+    "dependency_changes": "avoided unless already present"
+  },
+  "risk_level": "high",
+  "exit_criteria": [
+    "Room schema and repository support routines, categories, goals, richer instances, backup export/import, and audit history.",
+    "UI exposes Today, Routines, Calendar, Insights, and Settings surfaces with resource-driven strings.",
+    "Notifications, alarms, widgets, shortcuts, and quick tile are wired into the local-first architecture.",
+    "Static resource/reference verification passes and CI can take over build/test validation."
+  ]
+}

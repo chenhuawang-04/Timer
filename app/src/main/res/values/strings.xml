@@ -2,11 +2,43 @@
 <resources>
     <string name="app_name">Timer</string>
 
+    <string name="tab_today">Today</string>
+    <string name="tab_routines">Routines</string>
+    <string name="tab_calendar">Calendar</string>
+    <string name="tab_insights">Insights</string>
+    <string name="tab_settings">Settings</string>
+
     <string name="dashboard_title">Timer</string>
-    <string name="dashboard_subtitle">Daily tasks / timers / time windows</string>
+    <string name="dashboard_subtitle">Timers, routines, calendar, insights, and reliable background tracking</string>
+
     <string name="section_today_tasks">Today&#39;s tasks</string>
     <string name="today_tasks_subtitle_empty">Create a task to start</string>
     <string name="today_tasks_subtitle_count">%1$d tasks</string>
+    <string name="section_suggestions">Suggestions</string>
+    <string name="section_suggestions_subtitle">Small adjustments based on recent activity</string>
+    <string name="section_routine_center">Routine center</string>
+    <string name="section_routine_center_subtitle">Create recurring templates, categories, and long-term goals</string>
+    <string name="section_categories">Categories</string>
+    <string name="section_categories_subtitle">%1$d categories</string>
+    <string name="section_goals">Goals</string>
+    <string name="section_goals_subtitle">%1$d active goals</string>
+    <string name="section_routines">Routines</string>
+    <string name="section_routines_subtitle">%1$d templates</string>
+    <string name="section_selected_day">Selected day</string>
+    <string name="section_overview">Overview</string>
+    <string name="section_overview_subtitle">Time, completion, and streak health</string>
+    <string name="section_history">History</string>
+    <string name="section_history_subtitle">Recent outcomes and notes</string>
+    <string name="section_audit">Audit log</string>
+    <string name="section_audit_subtitle">Durable event trail</string>
+    <string name="section_category_breakdown">Category breakdown</string>
+    <string name="section_project_breakdown">Project breakdown</string>
+    <string name="section_appearance">Appearance</string>
+    <string name="section_dashboard_behavior">Dashboard behavior</string>
+    <string name="section_reliability">Reliability</string>
+    <string name="section_sync_backup">Sync and backup</string>
+    <string name="section_widgets_shortcuts">Widgets and shortcuts</string>
+
     <string name="metric_tasks">Tasks</string>
     <string name="metric_done">Done</string>
     <string name="metric_missed">Missed</string>
@@ -14,15 +46,18 @@
     <string name="metric_month">Month</string>
     <string name="metric_window">Window</string>
     <string name="metric_top">Top: %1$s</string>
+    <string name="metric_score">Score</string>
+    <string name="metric_streak">Streak</string>
+    <string name="metric_completion">Completion</string>
+    <string name="metric_avg_session">Avg session</string>
+    <string name="metric_focus_sessions">Focus runs</string>
 
     <string name="notifications_off_title">Notifications are off</string>
-    <string name="notifications_off_message">Background countdown and missed-task alerts may be limited.</string>
+    <string name="notifications_off_message">Background reminders and completion alerts may be limited.</string>
     <string name="action_enable">Enable</string>
+    <string name="action_open_settings_hint">You can enable notifications in system settings.</string>
     <string name="background_service_warning_title">Background service warning</string>
     <string name="background_service_start_failed">Background timer service did not start (%1$s). Timing state is saved, but background alerts may be limited.</string>
-
-    <string name="chart_last_seven_days_title">Last 7 days</string>
-    <string name="chart_last_seven_days_subtitle">Tracked duration and task results</string>
 
     <string name="action_complete">Complete</string>
     <string name="action_cancel">Cancel</string>
@@ -32,22 +67,73 @@
     <string name="action_resume">Resume</string>
     <string name="action_create">Create</string>
     <string name="action_create_first_task">Create first task</string>
+    <string name="action_create_routine">Create routine</string>
+    <string name="action_add_category">Add category</string>
+    <string name="action_add_goal">Add goal</string>
+    <string name="action_focus">Focus</string>
+    <string name="action_save">Save</string>
+    <string name="action_close">Close</string>
+    <string name="action_got_it">Got it</string>
+    <string name="action_edit_note">Edit note</string>
+    <string name="action_export_backup">Export backup</string>
+    <string name="action_import_backup">Import backup</string>
+    <string name="action_create_today">Create today</string>
+    <string name="action_created_today">Created today</string>
 
-    <string name="dialog_new_task">New daily task</string>
+    <string name="dialog_new_task">New task</string>
+    <string name="dialog_new_routine">New routine</string>
+    <string name="dialog_new_category">New category</string>
+    <string name="dialog_new_goal">New goal</string>
+
     <string name="field_task_name">Task name</string>
+    <string name="field_countdown_minutes">Countdown minutes</string>
+    <string name="field_preferred_start">Preferred start HH:mm</string>
+    <string name="field_start_time">Start HH:mm</string>
+    <string name="field_end_time">End HH:mm</string>
+    <string name="field_time_validation">Use HH:mm between 00:00 and 23:59.</string>
+    <string name="field_priority">Priority</string>
+    <string name="field_category">Category</string>
+    <string name="field_category_name">Category name</string>
+    <string name="field_color_argb">Color ARGB</string>
+    <string name="field_project">Project</string>
+    <string name="field_project_optional">Project (optional)</string>
+    <string name="field_tags">Tags, separated by commas</string>
+    <string name="field_note">Task note</string>
+    <string name="field_save_as_routine">Save as routine template</string>
+    <string name="field_repeat_mode">Repeat mode</string>
+    <string name="field_repeat_interval">Repeat interval</string>
+    <string name="field_enable_reminders">Enable reminders</string>
+    <string name="field_remind_before_end">Reminder before end (minutes)</string>
+    <string name="field_session_mode">Session mode</string>
+    <string name="field_pomodoro_work">Pomodoro work</string>
+    <string name="field_pomodoro_break">Pomodoro break</string>
+    <string name="field_pomodoro_cycles">Pomodoro cycles</string>
+    <string name="field_goal_name">Goal name</string>
+    <string name="field_goal_scope">Goal scope</string>
+    <string name="field_goal_metric">Goal metric</string>
+    <string name="field_goal_target">Goal target</string>
+    <string name="field_category_optional">Category filter (optional)</string>
+    <string name="field_result_note">Result note</string>
+    <string name="default_category_work">Work</string>
+    <string name="default_category_study">Study</string>
+    <string name="default_category_health">Health</string>
+    <string name="default_category_life">Life</string>
+
     <string name="task_type_count_up">Count up</string>
     <string name="task_type_count_down">Countdown</string>
     <string name="task_type_time_window">Time window</string>
     <string name="task_type_time_window_short">Window</string>
-    <string name="field_countdown_minutes">Countdown minutes</string>
-    <string name="field_start_time">Start HH:mm</string>
-    <string name="field_end_time">End HH:mm</string>
-    <string name="field_time_validation">Use HH:mm between 00:00 and 23:59.</string>
     <string name="task_name_untitled">Untitled task</string>
     <string name="task_name_deleted">Deleted task</string>
+    <string name="task_meta_planned_time">Planned %1$s</string>
 
     <string name="empty_no_tasks_today">No tasks today</string>
     <string name="empty_no_tasks_message">Create count-up timers, countdowns, or scheduled time-window tasks.</string>
+    <string name="empty_no_routines">No routine templates yet</string>
+    <string name="empty_no_routines_body">Create one recurring template to reduce daily planning friction.</string>
+    <string name="empty_calendar_day">No tasks on this day</string>
+    <string name="empty_calendar_day_body">Use the plus button to add one or generate from a routine.</string>
+    <string name="empty_breakdown">No tracked data yet.</string>
 
     <string name="status_planned">Planned</string>
     <string name="status_ready">Ready</string>
@@ -58,26 +144,60 @@
     <string name="status_cancelled">Cancelled</string>
     <string name="status_unknown">Unknown</string>
 
-    <string name="window_no_start_time">No start time</string>
-    <string name="window_no_end_time">No end time</string>
-    <string name="window_status_completed">%1$s-%2$s / completed</string>
-    <string name="window_status_missed">%1$s-%2$s / missed</string>
-    <string name="window_status_starts_later">%1$s-%2$s / starts later</string>
-    <string name="window_status_complete_now">%1$s-%2$s / complete now</string>
-    <string name="window_status_overdue">%1$s-%2$s / overdue</string>
+    <string name="priority_low">Low</string>
+    <string name="priority_medium">Medium</string>
+    <string name="priority_high">High</string>
 
-    <string name="duration_hours_minutes">%1$dh %2$dm</string>
-    <string name="duration_hours_only">%1$dh</string>
-    <string name="duration_minutes_only">%1$dm</string>
+    <string name="repeat_once">Once</string>
+    <string name="repeat_daily">Daily</string>
+    <string name="repeat_weekdays">Weekdays</string>
+    <string name="repeat_weekly">Weekly</string>
+    <string name="repeat_custom">Custom days</string>
+    <string name="repeat_monthly">Monthly</string>
+
+    <string name="reminder_disabled">Reminders off</string>
+    <string name="reminder_enabled">Reminders on</string>
+    <string name="reminder_start">Start reminder</string>
+    <string name="reminder_before_end">%1$d min before end</string>
+    <string name="reminder_deadline">Deadline reminder</string>
+
+    <string name="session_mode_standard">Standard</string>
+    <string name="session_mode_pomodoro">Pomodoro</string>
+    <string name="pomodoro_phase_work">Work</string>
+    <string name="pomodoro_phase_break">Break</string>
+    <string name="pomodoro_summary">Cycle %1$d/%2$d · %3$s · %4$s left</string>
+
+    <string name="goal_scope_daily">Daily</string>
+    <string name="goal_scope_weekly">Weekly</string>
+    <string name="goal_scope_monthly">Monthly</string>
+    <string name="goal_metric_completed_tasks">Completed tasks</string>
+    <string name="goal_metric_tracked_minutes">Tracked minutes</string>
+    <string name="goal_metric_window_rate">Window completion %%</string>
+    <string name="goal_progress_generic">%1$d / %2$d</string>
+    <string name="goal_progress_percent">%1$d%% / %2$d%%</string>
+    <string name="option_all_categories">All categories</string>
+
+    <string name="suggestion_seed_title">Seed a simple routine</string>
+    <string name="suggestion_seed_body">Start with one repeated task so your day has a stable anchor and your stats gain signal quickly.</string>
+    <string name="suggestion_miss_title">Reduce misses</string>
+    <string name="suggestion_miss_body">Try earlier reminders or a smaller time window if you miss planned work too often.</string>
+    <string name="suggestion_streak_title">%1$d-day streak</string>
+    <string name="suggestion_streak_body">Protect your streak with one small high-confidence win early in the day.</string>
+    <string name="suggestion_focus_title">Use focus mode</string>
+    <string name="suggestion_focus_body">Multiple high-priority items are still open. Move one into focus mode and finish it first.</string>
+    <string name="suggestion_pomodoro_title">Pomodoro active</string>
+    <string name="suggestion_pomodoro_body">Keep breaks short and restart the next work cycle on time to preserve rhythm.</string>
 
     <string name="notification_channel_running">Running timers</string>
     <string name="notification_channel_running_description">Shows active long-running timer tasks</string>
+    <string name="notification_channel_reminders">Task reminders</string>
+    <string name="notification_channel_reminders_description">Reminders before tasks begin or windows close</string>
     <string name="notification_channel_alerts">Task alerts</string>
     <string name="notification_channel_alerts_description">Alerts for countdown completion and missed time-window tasks</string>
     <string name="notification_foreground_title_standby">Timer standby</string>
     <string name="notification_foreground_title_single_fallback">Timer running</string>
     <string name="notification_foreground_title_multi">%1$d timers running</string>
-    <string name="notification_foreground_text_sync">Synchronizing local task state...</string>
+    <string name="notification_foreground_text_sync">Synchronizing local task state…</string>
     <string name="notification_foreground_prefix_remaining">Remaining %1$s</string>
     <string name="notification_foreground_prefix_elapsed">Elapsed %1$s</string>
     <string name="notification_bootstrap_title">Timer is restoring</string>
@@ -85,4 +205,92 @@
     <string name="notification_countdown_complete_text">%1$s is complete</string>
     <string name="notification_task_missed_title">Task missed</string>
     <string name="notification_task_missed_text">%1$s was not completed in time</string>
+    <string name="notification_reminder_title">Task reminder</string>
+    <string name="notification_reminder_start_text">It&#39;s time to start %1$s</string>
+    <string name="notification_reminder_window_end_text">%1$s is close to its window end</string>
+    <string name="notification_reminder_generic_text">Check %1$s</string>
+    <string name="notification_pomodoro_phase">Cycle %1$d/%2$d · %3$s · %4$s left</string>
+
+    <string name="widget_today_title">Today summary</string>
+    <string name="widget_today_summary">%1$d/%2$d done · %3$s</string>
+    <string name="widget_next_task">Next: %1$s</string>
+    <string name="widget_no_next_task">No upcoming task</string>
+    <string name="widget_focus_idle_title">Focus widget</string>
+    <string name="widget_focus_idle_body">No running timer</string>
+    <string name="widget_focus_phase">Cycle %1$d/%2$d · %3$s · %4$s</string>
+
+    <string name="breakdown_summary">%1$d/%2$d done · %3$s</string>
+    <string name="routine_stats_format">%1$d completed / %2$d planned</string>
+
+    <string name="audit_unknown_subject">Unknown item</string>
+    <string name="audit_create_template">Template created · %1$s</string>
+    <string name="audit_create_instance">Instance created · %1$s</string>
+    <string name="audit_start">Started · %1$s</string>
+    <string name="audit_pause">Paused · %1$s</string>
+    <string name="audit_resume">Resumed · %1$s</string>
+    <string name="audit_complete">Completed · %1$s</string>
+    <string name="audit_miss">Missed · %1$s</string>
+    <string name="audit_cancel">Cancelled · %1$s</string>
+    <string name="audit_recover">Recovered · %1$s</string>
+    <string name="audit_archive">Archived · %1$s</string>
+    <string name="audit_note">Updated note · %1$s</string>
+
+    <string name="setting_theme_mode">Theme mode</string>
+    <string name="setting_accent_palette">Accent palette</string>
+    <string name="setting_dynamic_color">Use dynamic color</string>
+    <string name="setting_dashboard_layout">Dashboard layout</string>
+    <string name="setting_sort_mode">Task sort</string>
+    <string name="setting_show_completed">Show completed tasks</string>
+    <string name="setting_keep_screen_on">Keep screen on in focus mode</string>
+    <string name="setting_energy_mode">Energy mode</string>
+    <string name="setting_notifications">Notifications enabled</string>
+
+    <string name="theme_system">System</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+    <string name="accent_blue">Blue</string>
+    <string name="accent_violet">Violet</string>
+    <string name="accent_emerald">Emerald</string>
+    <string name="accent_sunset">Sunset</string>
+
+    <string name="layout_today_first">Today first</string>
+    <string name="layout_focus_first">Focus first</string>
+    <string name="layout_stats_first">Stats first</string>
+
+    <string name="sort_smart">Smart</string>
+    <string name="sort_priority">Priority</string>
+    <string name="sort_start_time">Start time</string>
+    <string name="sort_created_at">Newest created</string>
+
+    <string name="energy_balanced">Balanced</string>
+    <string name="energy_reliable">Reliable</string>
+    <string name="energy_low_power">Low power</string>
+
+    <string name="backup_description">Export JSON backups for manual multi-device sync or offline recovery. Import replaces local data with the selected snapshot.</string>
+    <string name="widgets_shortcuts_description">Includes two widgets, launcher shortcuts, share-to-create, and a quick settings tile for fast capture.</string>
+    <string name="tile_quick_add">Quick add task</string>
+
+    <string name="shortcut_create_task_short">New task</string>
+    <string name="shortcut_create_task_long">Create a new task</string>
+    <string name="shortcut_create_routine_short">New routine</string>
+    <string name="shortcut_create_routine_long">Create a recurring routine</string>
+    <string name="shortcut_open_focus_short">Focus</string>
+    <string name="shortcut_open_focus_long">Open focus mode</string>
+
+    <string name="status_message_task_saved">Task saved</string>
+    <string name="status_message_category_saved">Category saved</string>
+    <string name="status_message_goal_saved">Goal saved</string>
+    <string name="status_message_note_saved">Note saved</string>
+    <string name="status_message_backup_exported">Backup exported</string>
+    <string name="status_message_backup_imported">Backup imported</string>
+    <string name="status_message_backup_failed">Backup export failed</string>
+    <string name="status_message_backup_import_failed">Backup import failed</string>
+
+    <string name="focus_mode_title">Focus mode</string>
+    <string name="focus_keep_screen_on">Screen will stay awake during focus mode.</string>
+    <string name="focus_screen_follow_system">Screen behavior follows system settings.</string>
+
+    <string name="duration_hours_minutes">%1$dh %2$dm</string>
+    <string name="duration_hours_only">%1$dh</string>
+    <string name="duration_minutes_only">%1$dm</string>
 </resources>

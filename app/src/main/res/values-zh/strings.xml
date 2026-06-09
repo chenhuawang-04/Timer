@@ -2,27 +2,62 @@
 <resources>
     <string name="app_name">计时</string>
 
+    <string name="tab_today">今日</string>
+    <string name="tab_routines">例行</string>
+    <string name="tab_calendar">日历</string>
+    <string name="tab_insights">洞察</string>
+    <string name="tab_settings">设置</string>
+
     <string name="dashboard_title">计时</string>
-    <string name="dashboard_subtitle">每日任务 / 正计时 / 倒计时 / 时间段</string>
+    <string name="dashboard_subtitle">计时、例行、日历、统计与可靠后台</string>
+
     <string name="section_today_tasks">今日任务</string>
     <string name="today_tasks_subtitle_empty">创建一个任务开始</string>
     <string name="today_tasks_subtitle_count">%1$d 个任务</string>
+    <string name="section_suggestions">建议</string>
+    <string name="section_suggestions_subtitle">基于近期使用情况给出的细小优化建议</string>
+    <string name="section_routine_center">例行中心</string>
+    <string name="section_routine_center_subtitle">创建重复模板、分类与长期目标</string>
+    <string name="section_categories">分类</string>
+    <string name="section_categories_subtitle">%1$d 个分类</string>
+    <string name="section_goals">目标</string>
+    <string name="section_goals_subtitle">%1$d 个生效目标</string>
+    <string name="section_routines">例行模板</string>
+    <string name="section_routines_subtitle">%1$d 个模板</string>
+    <string name="section_selected_day">所选日期</string>
+    <string name="section_overview">总览</string>
+    <string name="section_overview_subtitle">时长、完成率与连续表现</string>
+    <string name="section_history">历史</string>
+    <string name="section_history_subtitle">近期结果与复盘备注</string>
+    <string name="section_audit">审计日志</string>
+    <string name="section_audit_subtitle">可追踪的状态事件记录</string>
+    <string name="section_category_breakdown">分类拆分</string>
+    <string name="section_project_breakdown">项目拆分</string>
+    <string name="section_appearance">外观</string>
+    <string name="section_dashboard_behavior">首页行为</string>
+    <string name="section_reliability">可靠性</string>
+    <string name="section_sync_backup">同步与备份</string>
+    <string name="section_widgets_shortcuts">小组件与快捷方式</string>
+
     <string name="metric_tasks">任务</string>
     <string name="metric_done">完成</string>
     <string name="metric_missed">未完成</string>
     <string name="metric_week">本周</string>
     <string name="metric_month">本月</string>
     <string name="metric_window">窗口</string>
-    <string name="metric_top">最多：%1$s</string>
+    <string name="metric_top">最高投入：%1$s</string>
+    <string name="metric_score">得分</string>
+    <string name="metric_streak">连胜</string>
+    <string name="metric_completion">完成率</string>
+    <string name="metric_avg_session">平均单次</string>
+    <string name="metric_focus_sessions">专注次数</string>
 
     <string name="notifications_off_title">通知未开启</string>
-    <string name="notifications_off_message">后台倒计时完成和错过任务提醒可能受限。</string>
-    <string name="action_enable">开启</string>
-    <string name="background_service_warning_title">后台服务警告</string>
-    <string name="background_service_start_failed">后台计时服务启动失败（%1$s）。计时状态已保存，但后台提醒可能受限。</string>
-
-    <string name="chart_last_seven_days_title">最近 7 天</string>
-    <string name="chart_last_seven_days_subtitle">追踪时长与任务结果</string>
+    <string name="notifications_off_message">后台提醒与自动完成提示可能受限。</string>
+    <string name="action_enable">启用</string>
+    <string name="action_open_settings_hint">可在系统设置中开启通知权限。</string>
+    <string name="background_service_warning_title">后台服务提醒</string>
+    <string name="background_service_start_failed">后台计时服务启动失败（%1$s）。状态已保存，但后台提醒可能受限。</string>
 
     <string name="action_complete">完成</string>
     <string name="action_cancel">取消</string>
@@ -32,22 +67,73 @@
     <string name="action_resume">继续</string>
     <string name="action_create">创建</string>
     <string name="action_create_first_task">创建第一个任务</string>
+    <string name="action_create_routine">创建例行</string>
+    <string name="action_add_category">添加分类</string>
+    <string name="action_add_goal">添加目标</string>
+    <string name="action_focus">专注</string>
+    <string name="action_save">保存</string>
+    <string name="action_close">关闭</string>
+    <string name="action_got_it">知道了</string>
+    <string name="action_edit_note">编辑备注</string>
+    <string name="action_export_backup">导出备份</string>
+    <string name="action_import_backup">导入备份</string>
+    <string name="action_create_today">生成今日任务</string>
+    <string name="action_created_today">今日已生成</string>
 
-    <string name="dialog_new_task">新建每日任务</string>
-    <string name="field_task_name">任务名</string>
-    <string name="task_type_count_up">正计时</string>
-    <string name="task_type_count_down">倒计时</string>
-    <string name="task_type_time_window">时间段</string>
-    <string name="task_type_time_window_short">时间段</string>
-    <string name="field_countdown_minutes">倒计时分钟数</string>
-    <string name="field_start_time">开始 HH:mm</string>
-    <string name="field_end_time">结束 HH:mm</string>
+    <string name="dialog_new_task">新建任务</string>
+    <string name="dialog_new_routine">新建例行模板</string>
+    <string name="dialog_new_category">新建分类</string>
+    <string name="dialog_new_goal">新建目标</string>
+
+    <string name="field_task_name">任务名称</string>
+    <string name="field_countdown_minutes">倒计时分钟</string>
+    <string name="field_preferred_start">偏好开始时间 HH:mm</string>
+    <string name="field_start_time">开始时间 HH:mm</string>
+    <string name="field_end_time">结束时间 HH:mm</string>
     <string name="field_time_validation">请输入 00:00 到 23:59 之间的 HH:mm 时间。</string>
+    <string name="field_priority">优先级</string>
+    <string name="field_category">分类</string>
+    <string name="field_category_name">分类名称</string>
+    <string name="field_color_argb">颜色 ARGB</string>
+    <string name="field_project">项目</string>
+    <string name="field_project_optional">项目（可选）</string>
+    <string name="field_tags">标签，使用逗号分隔</string>
+    <string name="field_note">任务备注</string>
+    <string name="field_save_as_routine">保存为例行模板</string>
+    <string name="field_repeat_mode">重复方式</string>
+    <string name="field_repeat_interval">重复间隔</string>
+    <string name="field_enable_reminders">开启提醒</string>
+    <string name="field_remind_before_end">结束前提醒（分钟）</string>
+    <string name="field_session_mode">执行模式</string>
+    <string name="field_pomodoro_work">番茄工作时长</string>
+    <string name="field_pomodoro_break">番茄休息时长</string>
+    <string name="field_pomodoro_cycles">番茄轮数</string>
+    <string name="field_goal_name">目标名称</string>
+    <string name="field_goal_scope">目标周期</string>
+    <string name="field_goal_metric">目标指标</string>
+    <string name="field_goal_target">目标值</string>
+    <string name="field_category_optional">分类筛选（可选）</string>
+    <string name="field_result_note">结果备注</string>
+    <string name="default_category_work">工作</string>
+    <string name="default_category_study">学习</string>
+    <string name="default_category_health">健康</string>
+    <string name="default_category_life">生活</string>
+
+    <string name="task_type_count_up">正向计时</string>
+    <string name="task_type_count_down">倒计时</string>
+    <string name="task_type_time_window">时间窗口</string>
+    <string name="task_type_time_window_short">窗口</string>
     <string name="task_name_untitled">未命名任务</string>
     <string name="task_name_deleted">已删除任务</string>
+    <string name="task_meta_planned_time">计划于 %1$s</string>
 
     <string name="empty_no_tasks_today">今天还没有任务</string>
-    <string name="empty_no_tasks_message">创建正计时、倒计时或固定时间段任务。</string>
+    <string name="empty_no_tasks_message">可创建正向计时、倒计时或时间窗口任务。</string>
+    <string name="empty_no_routines">还没有例行模板</string>
+    <string name="empty_no_routines_body">先创建一个重复模板，可以明显减少每天重复建任务的负担。</string>
+    <string name="empty_calendar_day">这一天没有任务</string>
+    <string name="empty_calendar_day_body">你可以新增任务，或从例行模板生成。</string>
+    <string name="empty_breakdown">还没有可统计的数据。</string>
 
     <string name="status_planned">未开始</string>
     <string name="status_ready">就绪</string>
@@ -58,22 +144,56 @@
     <string name="status_cancelled">已取消</string>
     <string name="status_unknown">未知</string>
 
-    <string name="window_no_start_time">未设置开始时间</string>
-    <string name="window_no_end_time">未设置结束时间</string>
-    <string name="window_status_completed">%1$s-%2$s / 已完成</string>
-    <string name="window_status_missed">%1$s-%2$s / 已错过</string>
-    <string name="window_status_starts_later">%1$s-%2$s / 尚未开始</string>
-    <string name="window_status_complete_now">%1$s-%2$s / 可立即完成</string>
-    <string name="window_status_overdue">%1$s-%2$s / 已超时</string>
+    <string name="priority_low">低</string>
+    <string name="priority_medium">中</string>
+    <string name="priority_high">高</string>
 
-    <string name="duration_hours_minutes">%1$d小时 %2$d分</string>
-    <string name="duration_hours_only">%1$d小时</string>
-    <string name="duration_minutes_only">%1$d分</string>
+    <string name="repeat_once">单次</string>
+    <string name="repeat_daily">每天</string>
+    <string name="repeat_weekdays">工作日</string>
+    <string name="repeat_weekly">每周</string>
+    <string name="repeat_custom">自定义日期</string>
+    <string name="repeat_monthly">每月</string>
+
+    <string name="reminder_disabled">提醒关闭</string>
+    <string name="reminder_enabled">提醒开启</string>
+    <string name="reminder_start">开始提醒</string>
+    <string name="reminder_before_end">结束前 %1$d 分钟</string>
+    <string name="reminder_deadline">截止提醒</string>
+
+    <string name="session_mode_standard">标准</string>
+    <string name="session_mode_pomodoro">番茄钟</string>
+    <string name="pomodoro_phase_work">工作</string>
+    <string name="pomodoro_phase_break">休息</string>
+    <string name="pomodoro_summary">第 %1$d/%2$d 轮 · %3$s · 剩余 %4$s</string>
+
+    <string name="goal_scope_daily">每日</string>
+    <string name="goal_scope_weekly">每周</string>
+    <string name="goal_scope_monthly">每月</string>
+    <string name="goal_metric_completed_tasks">完成任务数</string>
+    <string name="goal_metric_tracked_minutes">累计分钟数</string>
+    <string name="goal_metric_window_rate">时间窗口完成率 %%</string>
+    <string name="goal_progress_generic">%1$d / %2$d</string>
+    <string name="goal_progress_percent">%1$d%% / %2$d%%</string>
+    <string name="option_all_categories">全部分类</string>
+
+    <string name="suggestion_seed_title">先建立一个基础例行</string>
+    <string name="suggestion_seed_body">先从一个重复任务开始，让每天的计划更稳定，也能更快积累统计价值。</string>
+    <string name="suggestion_miss_title">减少未完成</string>
+    <string name="suggestion_miss_body">如果最近常错过任务，可以尝试更早提醒或缩短时间窗口。</string>
+    <string name="suggestion_streak_title">已连续 %1$d 天</string>
+    <string name="suggestion_streak_body">今天先完成一个最稳妥的小任务，优先保护你的连续记录。</string>
+    <string name="suggestion_focus_title">建议进入专注模式</string>
+    <string name="suggestion_focus_body">当前仍有多个高优先级任务未完成，建议先专注完成其中一个。</string>
+    <string name="suggestion_pomodoro_title">正在使用番茄模式</string>
+    <string name="suggestion_pomodoro_body">休息阶段尽量短一些，按时进入下一轮，节奏会更稳定。</string>
 
     <string name="notification_channel_running">运行中的计时</string>
-    <string name="notification_channel_running_description">显示当前正在运行的长时计时任务</string>
-    <string name="notification_channel_alerts">任务提醒</string>
-    <string name="notification_channel_alerts_description">用于倒计时完成和时间段任务错过提醒</string>
+    <string name="notification_channel_running_description">显示当前正在运行的长时间计时任务</string>
+    <string name="notification_channel_reminders">任务提醒</string>
+    <string name="notification_channel_reminders_description">在任务开始前或窗口结束前给出提醒</string>
+    <string name="notification_channel_alerts">任务告警</string>
+    <string name="notification_channel_alerts_description">倒计时完成与时间窗口错过提醒</string>
     <string name="notification_foreground_title_standby">计时待命中</string>
     <string name="notification_foreground_title_single_fallback">计时进行中</string>
     <string name="notification_foreground_title_multi">%1$d 个计时正在运行</string>
@@ -85,4 +205,92 @@
     <string name="notification_countdown_complete_text">%1$s 已完成</string>
     <string name="notification_task_missed_title">任务已错过</string>
     <string name="notification_task_missed_text">%1$s 未在规定时间内完成</string>
+    <string name="notification_reminder_title">任务提醒</string>
+    <string name="notification_reminder_start_text">现在可以开始 %1$s 了</string>
+    <string name="notification_reminder_window_end_text">%1$s 即将到达窗口结束时间</string>
+    <string name="notification_reminder_generic_text">请检查 %1$s</string>
+    <string name="notification_pomodoro_phase">第 %1$d/%2$d 轮 · %3$s · 剩余 %4$s</string>
+
+    <string name="widget_today_title">今日概览</string>
+    <string name="widget_today_summary">完成 %1$d/%2$d · %3$s</string>
+    <string name="widget_next_task">下一个：%1$s</string>
+    <string name="widget_no_next_task">没有即将开始的任务</string>
+    <string name="widget_focus_idle_title">专注小组件</string>
+    <string name="widget_focus_idle_body">当前没有运行中的计时</string>
+    <string name="widget_focus_phase">第 %1$d/%2$d 轮 · %3$s · %4$s</string>
+
+    <string name="breakdown_summary">完成 %1$d/%2$d · %3$s</string>
+    <string name="routine_stats_format">完成 %1$d 次 / 计划 %2$d 次</string>
+
+    <string name="audit_unknown_subject">未知对象</string>
+    <string name="audit_create_template">创建模板 · %1$s</string>
+    <string name="audit_create_instance">创建实例 · %1$s</string>
+    <string name="audit_start">开始 · %1$s</string>
+    <string name="audit_pause">暂停 · %1$s</string>
+    <string name="audit_resume">继续 · %1$s</string>
+    <string name="audit_complete">完成 · %1$s</string>
+    <string name="audit_miss">错过 · %1$s</string>
+    <string name="audit_cancel">取消 · %1$s</string>
+    <string name="audit_recover">恢复 · %1$s</string>
+    <string name="audit_archive">归档 · %1$s</string>
+    <string name="audit_note">更新备注 · %1$s</string>
+
+    <string name="setting_theme_mode">主题模式</string>
+    <string name="setting_accent_palette">强调色</string>
+    <string name="setting_dynamic_color">使用动态取色</string>
+    <string name="setting_dashboard_layout">首页布局</string>
+    <string name="setting_sort_mode">任务排序</string>
+    <string name="setting_show_completed">显示已完成任务</string>
+    <string name="setting_keep_screen_on">专注模式保持亮屏</string>
+    <string name="setting_energy_mode">耗电模式</string>
+    <string name="setting_notifications">通知权限已开启</string>
+
+    <string name="theme_system">跟随系统</string>
+    <string name="theme_light">浅色</string>
+    <string name="theme_dark">深色</string>
+    <string name="accent_blue">蓝色</string>
+    <string name="accent_violet">紫色</string>
+    <string name="accent_emerald">翠绿</string>
+    <string name="accent_sunset">日落橙</string>
+
+    <string name="layout_today_first">今日优先</string>
+    <string name="layout_focus_first">专注优先</string>
+    <string name="layout_stats_first">统计优先</string>
+
+    <string name="sort_smart">智能</string>
+    <string name="sort_priority">优先级</string>
+    <string name="sort_start_time">开始时间</string>
+    <string name="sort_created_at">最新创建</string>
+
+    <string name="energy_balanced">均衡</string>
+    <string name="energy_reliable">高可靠</string>
+    <string name="energy_low_power">低耗电</string>
+
+    <string name="backup_description">支持导出 JSON 备份，用于离线恢复或手动多设备同步。导入会用所选快照替换本地数据。</string>
+    <string name="widgets_shortcuts_description">已支持两个桌面小组件、桌面快捷方式、分享文本建任务，以及快捷设置磁贴。</string>
+    <string name="tile_quick_add">快速添加任务</string>
+
+    <string name="shortcut_create_task_short">新建任务</string>
+    <string name="shortcut_create_task_long">创建一个新任务</string>
+    <string name="shortcut_create_routine_short">新建例行</string>
+    <string name="shortcut_create_routine_long">创建一个重复例行模板</string>
+    <string name="shortcut_open_focus_short">专注模式</string>
+    <string name="shortcut_open_focus_long">打开专注模式</string>
+
+    <string name="status_message_task_saved">任务已保存</string>
+    <string name="status_message_category_saved">分类已保存</string>
+    <string name="status_message_goal_saved">目标已保存</string>
+    <string name="status_message_note_saved">备注已保存</string>
+    <string name="status_message_backup_exported">备份已导出</string>
+    <string name="status_message_backup_imported">备份已导入</string>
+    <string name="status_message_backup_failed">导出备份失败</string>
+    <string name="status_message_backup_import_failed">导入备份失败</string>
+
+    <string name="focus_mode_title">专注模式</string>
+    <string name="focus_keep_screen_on">专注模式下将保持屏幕常亮。</string>
+    <string name="focus_screen_follow_system">屏幕行为跟随系统设置。</string>
+
+    <string name="duration_hours_minutes">%1$d 小时 %2$d 分</string>
+    <string name="duration_hours_only">%1$d 小时</string>
+    <string name="duration_minutes_only">%1$d 分</string>
 </resources>

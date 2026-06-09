@@ -20,6 +20,26 @@ object TaskStatuses {
     const val CANCELLED = "CANCELLED"
 }
 
+object SessionModes {
+    const val STANDARD = "STANDARD"
+    const val POMODORO = "POMODORO"
+}
+
+object TaskPriorities {
+    const val LOW = "LOW"
+    const val MEDIUM = "MEDIUM"
+    const val HIGH = "HIGH"
+}
+
+object RepeatModes {
+    const val NONE = "NONE"
+    const val DAILY = "DAILY"
+    const val WEEKLY = "WEEKLY"
+    const val WEEKDAYS = "WEEKDAYS"
+    const val CUSTOM_DAYS = "CUSTOM_DAYS"
+    const val MONTHLY = "MONTHLY"
+}
+
 object SessionSources {
     const val MANUAL = "MANUAL"
     const val COUNTDOWN_AUTO = "COUNTDOWN_AUTO"
@@ -38,9 +58,24 @@ object MissSources {
     const val RECOVERED_DEADLINE = "RECOVERED_DEADLINE"
 }
 
+object GoalScopes {
+    const val DAILY = "DAILY"
+    const val WEEKLY = "WEEKLY"
+    const val MONTHLY = "MONTHLY"
+}
+
+object GoalMetricTypes {
+    const val COMPLETED_TASKS = "COMPLETED_TASKS"
+    const val TRACKED_MINUTES = "TRACKED_MINUTES"
+    const val TIME_WINDOW_COMPLETION_RATE = "TIME_WINDOW_COMPLETION_RATE"
+}
+
 object TaskEventTypes {
+    const val CREATE_CATEGORY = "CREATE_CATEGORY"
+    const val CREATE_GOAL = "CREATE_GOAL"
     const val CREATE_TEMPLATE = "CREATE_TEMPLATE"
     const val CREATE_INSTANCE = "CREATE_INSTANCE"
+    const val GENERATE_INSTANCE = "GENERATE_INSTANCE"
     const val START = "START"
     const val PAUSE = "PAUSE"
     const val RESUME = "RESUME"
@@ -49,14 +84,64 @@ object TaskEventTypes {
     const val CANCEL = "CANCEL"
     const val RECOVER = "RECOVER"
     const val ARCHIVE = "ARCHIVE"
+    const val UPDATE_NOTE = "UPDATE_NOTE"
+    const val EXPORT = "EXPORT"
+    const val IMPORT = "IMPORT"
 }
+
+object AlarmKinds {
+    const val TASK_START = "TASK_START"
+    const val WINDOW_PRE_END = "WINDOW_PRE_END"
+    const val WINDOW_DEADLINE = "WINDOW_DEADLINE"
+    const val COUNTDOWN_COMPLETE = "COUNTDOWN_COMPLETE"
+}
+
+@Entity(
+    tableName = "task_category",
+    indices = [
+        Index(value = ["archived"]),
+        Index(value = ["name"], unique = true)
+    ]
+)
+data class TaskCategoryEntity(
+    @PrimaryKey val id: String,
+    val name: String,
+    val colorArgb: Long,
+    val archived: Boolean,
+    val createdAtEpochMillis: Long,
+    val updatedAtEpochMillis: Long
+)
+
+@Entity(
+    tableName = "goal",
+    indices = [
+        Index(value = ["active"]),
+        Index(value = ["scope"]),
+        Index(value = ["metricType"]),
+        Index(value = ["categoryId"])
+    ]
+)
+data class GoalEntity(
+    @PrimaryKey val id: String,
+    val name: String,
+    val scope: String,
+    val metricType: String,
+    val targetValue: Long,
+    val categoryId: String?,
+    val projectName: String?,
+    val active: Boolean,
+    val createdAtEpochMillis: Long,
+    val updatedAtEpochMillis: Long
+)
 
 @Entity(
     tableName = "task_template",
     indices = [
         Index(value = ["archived"]),
         Index(value = ["type"]),
-        Index(value = ["tag"])
+        Index(value = ["categoryId"]),
+        Index(value = ["repeatMode"]),
+        Index(value = ["projectName"])
     ]
 )
 data class TaskTemplateEntity(
@@ -64,12 +149,29 @@ data class TaskTemplateEntity(
     val name: String,
     val type: String,
     val defaultTargetDurationMillis: Long?,
+    val preferredStartMinuteOfDay: Int?,
     val defaultStartMinuteOfDay: Int?,
     val defaultEndMinuteOfDay: Int?,
     val colorArgb: Long,
-    val icon: String?,
-    val tag: String?,
+    val categoryId: String?,
+    val projectName: String?,
+    val tagsCsv: String?,
     val note: String?,
+    val priority: String,
+    val anchorDate: String,
+    val repeatMode: String,
+    val repeatDaysCsv: String?,
+    val repeatInterval: Int,
+    val remindersEnabled: Boolean,
+    val remindAtStart: Boolean,
+    val remindBeforeEndMinutes: Int?,
+    val remindAtDeadline: Boolean,
+    val countTowardGoals: Boolean,
+    val sessionMode: String,
+    val pomodoroWorkMinutes: Int?,
+    val pomodoroBreakMinutes: Int?,
+    val pomodoroCycles: Int?,
+    val autoGenerateAheadDays: Int,
     val archived: Boolean,
     val createdAtEpochMillis: Long,
     val updatedAtEpochMillis: Long
@@ -78,13 +180,16 @@ data class TaskTemplateEntity(
 @Entity(
     tableName = "task_instance",
     indices = [
-        Index(value = ["templateId"]),
+        Index(value = ["templateId", "localDate"], unique = true),
         Index(value = ["localDate"]),
         Index(value = ["status"]),
         Index(value = ["archived"]),
         Index(value = ["type"]),
         Index(value = ["plannedStartEpochMillis"]),
-        Index(value = ["plannedEndEpochMillis"])
+        Index(value = ["plannedEndEpochMillis"]),
+        Index(value = ["categoryIdSnapshot"]),
+        Index(value = ["projectNameSnapshot"]),
+        Index(value = ["priority"])
     ]
 )
 data class TaskInstanceEntity(
@@ -95,10 +200,26 @@ data class TaskInstanceEntity(
     val type: String,
     val status: String,
     val targetDurationMillis: Long?,
+    val preferredStartEpochMillis: Long?,
     val plannedStartEpochMillis: Long?,
     val plannedEndEpochMillis: Long?,
     val colorArgb: Long,
-    val tagSnapshot: String?,
+    val categoryIdSnapshot: String?,
+    val categoryNameSnapshot: String?,
+    val projectNameSnapshot: String?,
+    val tagsSnapshot: String?,
+    val noteSnapshot: String?,
+    val priority: String,
+    val remindersEnabled: Boolean,
+    val remindAtStart: Boolean,
+    val remindBeforeEndMinutes: Int?,
+    val remindAtDeadline: Boolean,
+    val countTowardGoals: Boolean,
+    val sessionMode: String,
+    val pomodoroWorkMinutes: Int?,
+    val pomodoroBreakMinutes: Int?,
+    val pomodoroCycles: Int?,
+    val sortOrder: Int,
     val createdAtEpochMillis: Long,
     val updatedAtEpochMillis: Long,
     val completedAtEpochMillis: Long?,
@@ -106,6 +227,7 @@ data class TaskInstanceEntity(
     val cancelledAtEpochMillis: Long?,
     val completionSource: String?,
     val missSource: String?,
+    val resultNote: String?,
     val archived: Boolean,
     val archivedAtEpochMillis: Long?
 )

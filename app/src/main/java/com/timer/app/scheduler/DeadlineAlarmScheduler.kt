@@ -5,21 +5,20 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import com.timer.app.data.AlarmKinds
 import com.timer.app.data.TaskInstanceEntity
+import com.timer.app.data.TaskRuntimeStateEntity
 import com.timer.app.data.TaskStatuses
 import com.timer.app.data.TaskTypes
+import com.timer.app.domain.TimerMath
 
 /**
- * Low-overhead deadline scheduling for time-window task reconciliation.
+ * Low-overhead alarm scheduling for reminders, countdown completion hints, and
+ * time-window reconciliation.
  *
- * This scheduler is deliberately a wake-up hint, not the source of truth:
- * Room state is reconciled transactionally by RoomTimerRepository whenever the
- * app starts, resumes through the dashboard ViewModel, the foreground service
- * ticks, boot/package replacement is received, or one of these alarms fires.
- *
- * We avoid exact-alarm permissions at this stage. setAndAllowWhileIdle gives
- * Android permission to batch delivery for battery health, while the eventual
- * reconciliation pass still guarantees durable state correctness.
+ * These alarms are wake-up hints only. Durable correctness always comes from
+ * repository reconciliation on startup, foreground service refresh, receiver
+ * delivery, and user-driven refresh points.
  */
 class DeadlineAlarmScheduler(private val context: Context) {
     private val appContext = context.applicationContext
@@ -27,27 +26,51 @@ class DeadlineAlarmScheduler(private val context: Context) {
         "AlarmManager service is unavailable"
     }
 
-    fun scheduleFor(instances: List<TaskInstanceEntity>, nowEpochMillis: Long = System.currentTimeMillis()) {
-        instances
-            .asSequence()
-            .filter { it.type == TaskTypes.TIME_WINDOW }
+    fun scheduleFor(
+        instances: List<TaskInstanceEntity>,
+        states: List<TaskRuntimeStateEntity>,
+        nowEpochMillis: Long = System.currentTimeMillis(),
+        nowElapsedRealtimeMillis: Long = android.os.SystemClock.elapsedRealtime()
+    ) {
+        val stateById = states.associateBy { it.instanceId }
+        instances.asSequence()
             .filterNot { it.archived }
-            .filter { it.status == TaskStatuses.PLANNED || it.status == TaskStatuses.READY }
+            .filterNot { it.status in setOf(TaskStatuses.COMPLETED, TaskStatuses.MISSED, TaskStatuses.CANCELLED) }
             .forEach { instance ->
-                val start = instance.plannedStartEpochMillis
-                val end = instance.plannedEndEpochMillis
-                if (start != null && start > nowEpochMillis) {
-                    schedule(instance.id, KIND_WINDOW_START, start)
+                val reminderAnchor = instance.preferredStartEpochMillis ?: instance.plannedStartEpochMillis
+                if (instance.remindersEnabled && instance.remindAtStart && reminderAnchor != null && reminderAnchor > nowEpochMillis) {
+                    schedule(instance.id, AlarmKinds.TASK_START, reminderAnchor)
                 }
-                if (end != null && end > nowEpochMillis) {
-                    schedule(instance.id, KIND_WINDOW_END, end)
+                if (instance.type == TaskTypes.TIME_WINDOW) {
+                    val end = instance.plannedEndEpochMillis
+                    if (instance.remindersEnabled && instance.remindBeforeEndMinutes != null && end != null) {
+                        val preEnd = end - instance.remindBeforeEndMinutes.coerceAtLeast(0) * 60_000L
+                        if (preEnd > nowEpochMillis) {
+                            schedule(instance.id, AlarmKinds.WINDOW_PRE_END, preEnd)
+                        }
+                    }
+                    if (end != null && end > nowEpochMillis) {
+                        schedule(instance.id, AlarmKinds.WINDOW_DEADLINE, end)
+                    }
+                } else if (instance.type == TaskTypes.COUNT_DOWN) {
+                    val state = stateById[instance.id]
+                    val remaining = TimerMath.remainingMillis(instance, state, nowElapsedRealtimeMillis)
+                    if (state?.status == TaskStatuses.RUNNING && remaining != null && remaining > 0L) {
+                        schedule(instance.id, AlarmKinds.COUNTDOWN_COMPLETE, nowEpochMillis + remaining)
+                    }
                 }
             }
     }
 
     fun cancelFor(instanceId: String) {
-        pendingIntentOrNull(instanceId, KIND_WINDOW_START)?.let(alarmManager::cancel)
-        pendingIntentOrNull(instanceId, KIND_WINDOW_END)?.let(alarmManager::cancel)
+        listOf(
+            AlarmKinds.TASK_START,
+            AlarmKinds.WINDOW_PRE_END,
+            AlarmKinds.WINDOW_DEADLINE,
+            AlarmKinds.COUNTDOWN_COMPLETE
+        ).forEach { kind ->
+            pendingIntentOrNull(instanceId, kind)?.let(alarmManager::cancel)
+        }
     }
 
     private fun schedule(instanceId: String, kind: String, triggerAtEpochMillis: Long) {
@@ -61,7 +84,7 @@ class DeadlineAlarmScheduler(private val context: Context) {
 
     private fun pendingIntent(instanceId: String, kind: String, extraFlags: Int): PendingIntent {
         val intent = Intent(appContext, DeadlineAlarmReceiver::class.java).apply {
-            action = ACTION_RECONCILE_DEADLINES
+            action = ACTION_RECONCILE_AND_REMIND
             putExtra(EXTRA_INSTANCE_ID, instanceId)
             putExtra(EXTRA_KIND, kind)
         }
@@ -75,7 +98,7 @@ class DeadlineAlarmScheduler(private val context: Context) {
 
     private fun pendingIntentOrNull(instanceId: String, kind: String): PendingIntent? {
         val intent = Intent(appContext, DeadlineAlarmReceiver::class.java).apply {
-            action = ACTION_RECONCILE_DEADLINES
+            action = ACTION_RECONCILE_AND_REMIND
             putExtra(EXTRA_INSTANCE_ID, instanceId)
             putExtra(EXTRA_KIND, kind)
         }
@@ -90,10 +113,8 @@ class DeadlineAlarmScheduler(private val context: Context) {
     private fun requestCode(instanceId: String, kind: String): Int = "$instanceId:$kind".hashCode()
 
     companion object {
-        const val ACTION_RECONCILE_DEADLINES = "com.timer.app.action.RECONCILE_DEADLINES"
+        const val ACTION_RECONCILE_AND_REMIND = "com.timer.app.action.RECONCILE_AND_REMIND"
         const val EXTRA_INSTANCE_ID = "instance_id"
         const val EXTRA_KIND = "kind"
-        private const val KIND_WINDOW_START = "window_start"
-        private const val KIND_WINDOW_END = "window_end"
     }
 }

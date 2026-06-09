@@ -20,10 +20,11 @@ object DurationFormatter {
         val totalMinutes = max(0L, millis) / 60000L
         val hours = totalMinutes / 60L
         val minutes = totalMinutes % 60L
+        val chinese = Locale.getDefault().language.startsWith("zh")
         return when {
-            hours > 0L && minutes > 0L -> "${hours}h ${minutes}m"
-            hours > 0L -> "${hours}h"
-            else -> "${minutes}m"
+            hours > 0L && minutes > 0L -> if (chinese) "${hours}小时 ${minutes}分" else "${hours}h ${minutes}m"
+            hours > 0L -> if (chinese) "${hours}小时" else "${hours}h"
+            else -> if (chinese) "${minutes}分" else "${minutes}m"
         }
     }
 }

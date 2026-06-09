@@ -2,13 +2,17 @@ package com.timer.app.data
 
 import androidx.room.withTransaction
 import com.timer.app.domain.IdProvider
+import com.timer.app.domain.PomodoroMath
+import com.timer.app.domain.TaskRecurrence
 import com.timer.app.domain.TimerClock
 import com.timer.app.domain.TimerMath
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.withContext
 import kotlin.math.max
 import kotlin.math.min
 
@@ -17,17 +21,14 @@ data class TimedTaskWithState(
     val state: TaskRuntimeStateEntity
 )
 
-data class DashboardSnapshot(
-    /**
-     * All non-archived and archived task instances known locally.
-     *
-     * The dashboard filters this list for the selected day when rendering task
-     * cards, while statistics intentionally need the full local history so week,
-     * month, last-seven-days, and top-task totals are not under-counted.
-     */
+data class AppSnapshot(
+    val categories: List<TaskCategoryEntity>,
+    val goals: List<GoalEntity>,
+    val templates: List<TaskTemplateEntity>,
     val instances: List<TaskInstanceEntity>,
     val states: List<TaskRuntimeStateEntity>,
-    val sessions: List<TaskSessionEntity>
+    val sessions: List<TaskSessionEntity>,
+    val events: List<TaskEventLogEntity>
 )
 
 data class CompletedTaskNotification(
@@ -50,146 +51,326 @@ class RoomTimerRepository(
     private val clock: TimerClock,
     private val idProvider: IdProvider,
     private val untitledTaskName: String,
+    private val defaultCategories: List<Pair<String, Long>>,
     private val zoneId: ZoneId = ZoneId.systemDefault()
 ) {
+    private data class MetaSnapshot(
+        val categories: List<TaskCategoryEntity>,
+        val goals: List<GoalEntity>,
+        val templates: List<TaskTemplateEntity>
+    )
+
+    private data class RuntimeSnapshot(
+        val instances: List<TaskInstanceEntity>,
+        val states: List<TaskRuntimeStateEntity>,
+        val sessions: List<TaskSessionEntity>,
+        val events: List<TaskEventLogEntity>
+    )
+
+    private val categoryDao = database.categoryDao()
+    private val goalDao = database.goalDao()
     private val templateDao = database.templateDao()
     private val instanceDao = database.instanceDao()
     private val runtimeStateDao = database.runtimeStateDao()
     private val sessionDao = database.sessionDao()
     private val eventLogDao = database.eventLogDao()
 
-    fun observeDashboardSnapshot(): Flow<DashboardSnapshot> = combine(
-        instanceDao.observeAll(),
-        runtimeStateDao.observeAll(),
-        sessionDao.observeAll()
-    ) { instances, states, sessions ->
-        DashboardSnapshot(instances = instances, states = states, sessions = sessions)
+    fun observeAppSnapshot(): Flow<AppSnapshot> {
+        val metaFlow = combine(
+            categoryDao.observeActive(),
+            goalDao.observeActive(),
+            templateDao.observeActiveTemplates()
+        ) { categories, goals, templates ->
+            MetaSnapshot(categories, goals, templates)
+        }
+        val runtimeFlow = combine(
+            instanceDao.observeAll(),
+            runtimeStateDao.observeAll(),
+            sessionDao.observeAll(),
+            eventLogDao.observeAll()
+        ) { instances, states, sessions, events ->
+            RuntimeSnapshot(instances, states, sessions, events)
+        }
+        return combine(metaFlow, runtimeFlow) { meta, runtime ->
+            AppSnapshot(
+                categories = meta.categories,
+                goals = meta.goals,
+                templates = meta.templates,
+                instances = runtime.instances,
+                states = runtime.states,
+                sessions = runtime.sessions,
+                events = runtime.events
+            )
+        }
     }
 
-    fun observeAllInstances(): Flow<List<TaskInstanceEntity>> = instanceDao.observeAll()
+    suspend fun ensureSeedData() {
+        if (categoryDao.getAll().isNotEmpty()) return
+        val now = clock.nowEpochMillis()
+        val defaults = defaultCategories.map { (name, colorArgb) ->
+            TaskCategoryEntity(idProvider.newId(), name, colorArgb, false, now, now)
+        }
+        database.withTransaction {
+            categoryDao.upsertAll(defaults)
+            defaults.forEach { category ->
+                insertEventLocked(
+                    instanceId = category.id,
+                    templateId = null,
+                    eventType = TaskEventTypes.CREATE_CATEGORY,
+                    atEpochMillis = now,
+                    elapsedRealtimeMillis = clock.elapsedRealtimeMillis(),
+                    payloadJson = "{\"name\":\"${category.name}\"}"
+                )
+            }
+        }
+    }
+
+    suspend fun exportData(): RepositoryExportData = withContext(Dispatchers.IO) {
+        RepositoryExportData(
+            categories = categoryDao.getAll(),
+            goals = goalDao.getAll(),
+            templates = templateDao.getAll(),
+            instances = instanceDao.getAll(),
+            states = runtimeStateDao.getAll(),
+            sessions = sessionDao.getAll(),
+            events = eventLogDao.getAll()
+        )
+    }
+
+    suspend fun importData(data: RepositoryExportData): ImportSummary = withContext(Dispatchers.IO) {
+        database.clearAllTables()
+        database.withTransaction {
+            categoryDao.upsertAll(data.categories)
+            goalDao.upsertAll(data.goals)
+            templateDao.upsertAll(data.templates)
+            instanceDao.upsertAll(data.instances)
+            runtimeStateDao.upsertAll(data.states)
+            sessionDao.upsertAll(data.sessions)
+            eventLogDao.upsertAll(data.events)
+            insertEventLocked(
+                instanceId = "system",
+                templateId = null,
+                eventType = TaskEventTypes.IMPORT,
+                atEpochMillis = clock.nowEpochMillis(),
+                elapsedRealtimeMillis = clock.elapsedRealtimeMillis(),
+                payloadJson = "{\"instances\":${data.instances.size}}"
+            )
+        }
+        ImportSummary(
+            categoryCount = data.categories.size,
+            goalCount = data.goals.size,
+            templateCount = data.templates.size,
+            instanceCount = data.instances.size,
+            sessionCount = data.sessions.size,
+            eventCount = data.events.size
+        )
+    }
 
     suspend fun getAllInstances(): List<TaskInstanceEntity> = instanceDao.getAll()
 
-    suspend fun createTaskTemplate(
-        name: String,
-        type: String,
-        defaultTargetDurationMillis: Long?,
-        defaultStartMinuteOfDay: Int?,
-        defaultEndMinuteOfDay: Int?,
-        colorArgb: Long,
-        icon: String? = null,
-        tag: String? = null,
-        note: String? = null
-    ): String {
+    suspend fun getAllRuntimeStates(): List<TaskRuntimeStateEntity> = runtimeStateDao.getAll()
+
+    suspend fun getAllSessions(): List<TaskSessionEntity> = sessionDao.getAll()
+
+    suspend fun createCategory(draft: CategoryDraft): String {
+        val now = clock.nowEpochMillis()
+        val existing = categoryDao.getByName(draft.name.trim())
+        if (existing != null) return existing.id
+        val category = TaskCategoryEntity(
+            id = idProvider.newId(),
+            name = draft.name.trim(),
+            colorArgb = draft.colorArgb,
+            archived = false,
+            createdAtEpochMillis = now,
+            updatedAtEpochMillis = now
+        )
+        database.withTransaction {
+            categoryDao.upsert(category)
+            insertEventLocked(category.id, null, TaskEventTypes.CREATE_CATEGORY, now, clock.elapsedRealtimeMillis(), "{\"name\":\"${category.name}\"}")
+        }
+        return category.id
+    }
+
+    suspend fun createGoal(draft: GoalDraft): String {
+        val now = clock.nowEpochMillis()
+        val goal = GoalEntity(
+            id = idProvider.newId(),
+            name = draft.name.trim().ifBlank { "Goal" },
+            scope = draft.scope,
+            metricType = draft.metricType,
+            targetValue = draft.targetValue.coerceAtLeast(1L),
+            categoryId = draft.categoryId,
+            projectName = draft.projectName?.trim()?.ifBlank { null },
+            active = true,
+            createdAtEpochMillis = now,
+            updatedAtEpochMillis = now
+        )
+        database.withTransaction {
+            goalDao.upsert(goal)
+            insertEventLocked(goal.id, null, TaskEventTypes.CREATE_GOAL, now, clock.elapsedRealtimeMillis(), "{\"scope\":\"${goal.scope}\"}")
+        }
+        return goal.id
+    }
+
+    suspend fun preparePlanningWindow(anchorDate: LocalDate, pastDays: Long = 14L, futureDays: Long = 45L) {
+        ensureSeedData()
+        val start = anchorDate.minusDays(pastDays)
+        val end = anchorDate.plusDays(futureDays)
+        val nowDate = Instant.ofEpochMilli(clock.nowEpochMillis()).atZone(zoneId).toLocalDate()
+        val activeTemplates = templateDao.getActiveTemplates()
+        val categoriesById = categoryDao.getAll().associateBy { it.id }
+        val existing = instanceDao.getForDateRange(start.toString(), end.toString())
+            .filter { it.templateId != null }
+            .associateBy { requireNotNull(it.templateId) to it.localDate }
+        val newInstances = mutableListOf<TaskInstanceEntity>()
+        val newStates = mutableListOf<TaskRuntimeStateEntity>()
+        val newEvents = mutableListOf<TaskEventLogEntity>()
+        val nowEpoch = clock.nowEpochMillis()
+        val nowElapsed = clock.elapsedRealtimeMillis()
+
+        activeTemplates.forEach { template ->
+            val generationEnd = minOf(end, nowDate.plusDays(template.autoGenerateAheadDays.coerceAtLeast(7).toLong()))
+            var cursor = maxOf(start, LocalDate.parse(template.anchorDate))
+            while (!cursor.isAfter(generationEnd)) {
+                val key = template.id to cursor.toString()
+                if (key !in existing && TaskRecurrence.matches(template, cursor)) {
+                    val category = template.categoryId?.let(categoriesById::get)
+                    val instance = buildInstanceFromTemplate(
+                        template = template,
+                        localDate = cursor,
+                        categoryName = category?.name,
+                        nowEpoch = nowEpoch,
+                        sortOrder = defaultSortOrder(
+                            priority = template.priority,
+                            minuteOfDay = template.preferredStartMinuteOfDay ?: template.defaultStartMinuteOfDay
+                        ),
+                        generated = true
+                    )
+                    newInstances += instance
+                    if (instance.type != TaskTypes.TIME_WINDOW) {
+                        newStates += TaskRuntimeStateEntity.idle(instance.id, nowEpoch)
+                    }
+                    newEvents += TaskEventLogEntity(
+                        id = idProvider.newId(),
+                        instanceId = instance.id,
+                        templateId = template.id,
+                        eventType = TaskEventTypes.GENERATE_INSTANCE,
+                        atEpochMillis = nowEpoch,
+                        elapsedRealtimeMillis = nowElapsed,
+                        payloadJson = "{\"localDate\":\"${cursor}\"}"
+                    )
+                }
+                cursor = cursor.plusDays(1)
+            }
+        }
+
+        if (newInstances.isNotEmpty()) {
+            database.withTransaction {
+                instanceDao.upsertAll(newInstances)
+                if (newStates.isNotEmpty()) {
+                    runtimeStateDao.upsertAll(newStates)
+                }
+                eventLogDao.upsertAll(newEvents)
+            }
+        }
+    }
+
+    suspend fun createTask(draft: TaskDraft): String {
+        val localDate = LocalDate.parse(draft.localDate)
+        return if (draft.saveAsRoutine) {
+            val templateId = createTaskTemplateFromDraft(draft)
+            createInstanceFromTemplate(templateId, localDate) ?: createStandaloneTaskInstance(draft, localDate)
+        } else {
+            createStandaloneTaskInstance(draft, localDate)
+        }
+    }
+
+    suspend fun createTaskTemplateFromDraft(draft: TaskDraft): String {
+        val localDate = LocalDate.parse(draft.localDate)
+        val category = draft.categoryId?.let { categoryDao.getById(it) }
         val now = clock.nowEpochMillis()
         val templateId = idProvider.newId()
+        val template = TaskTemplateEntity(
+            id = templateId,
+            name = draft.name.sanitizedName(),
+            type = draft.type,
+            defaultTargetDurationMillis = countdownTargetDuration(draft),
+            preferredStartMinuteOfDay = parseMinuteOfDay(draft.preferredStartTime ?: draft.startTime),
+            defaultStartMinuteOfDay = if (draft.type == TaskTypes.TIME_WINDOW) parseMinuteOfDay(draft.startTime) else null,
+            defaultEndMinuteOfDay = if (draft.type == TaskTypes.TIME_WINDOW) parseMinuteOfDay(draft.endTime) else null,
+            colorArgb = draft.colorArgb,
+            categoryId = category?.id,
+            projectName = draft.projectName?.trim()?.ifBlank { null },
+            tagsCsv = draft.tags?.normalizedCsv(),
+            note = draft.note?.trim()?.ifBlank { null },
+            priority = sanitizePriority(draft.priority),
+            anchorDate = localDate.toString(),
+            repeatMode = draft.repeatMode,
+            repeatDaysCsv = draft.repeatDaysCsv?.normalizedCsv(),
+            repeatInterval = draft.repeatInterval.coerceAtLeast(1),
+            remindersEnabled = draft.remindersEnabled,
+            remindAtStart = draft.remindAtStart,
+            remindBeforeEndMinutes = draft.remindBeforeEndMinutes?.coerceAtLeast(0),
+            remindAtDeadline = draft.remindAtDeadline,
+            countTowardGoals = draft.countTowardGoals,
+            sessionMode = sanitizeSessionMode(draft.sessionMode, draft.type),
+            pomodoroWorkMinutes = sanitizePomodoroMinutes(draft.pomodoroWorkMinutes),
+            pomodoroBreakMinutes = sanitizePomodoroBreakMinutes(draft.pomodoroBreakMinutes),
+            pomodoroCycles = sanitizePomodoroCycles(draft.pomodoroCycles),
+            autoGenerateAheadDays = 45,
+            archived = false,
+            createdAtEpochMillis = now,
+            updatedAtEpochMillis = now
+        )
         database.withTransaction {
-            templateDao.upsert(
-                TaskTemplateEntity(
-                    id = templateId,
-                    name = name.sanitizedName(),
-                    type = type,
-                    defaultTargetDurationMillis = defaultTargetDurationMillis?.coerceAtLeast(1_000L),
-                    defaultStartMinuteOfDay = defaultStartMinuteOfDay?.coerceIn(0, 1_439),
-                    defaultEndMinuteOfDay = defaultEndMinuteOfDay?.coerceIn(0, 1_439),
-                    colorArgb = colorArgb,
-                    icon = icon,
-                    tag = tag?.trim()?.ifBlank { null },
-                    note = note?.trim()?.ifBlank { null },
-                    archived = false,
-                    createdAtEpochMillis = now,
-                    updatedAtEpochMillis = now
-                )
-            )
-            insertEventLocked(
-                instanceId = templateId,
-                templateId = templateId,
-                eventType = TaskEventTypes.CREATE_TEMPLATE,
-                atEpochMillis = now,
-                elapsedRealtimeMillis = clock.elapsedRealtimeMillis(),
-                payloadJson = "{\"type\":\"$type\"}"
-            )
+            templateDao.upsert(template)
+            insertEventLocked(template.id, template.id, TaskEventTypes.CREATE_TEMPLATE, now, clock.elapsedRealtimeMillis(), "{\"type\":\"${template.type}\"}")
         }
         return templateId
     }
 
     suspend fun createInstanceFromTemplate(templateId: String, localDate: LocalDate): String? {
         val template = templateDao.getById(templateId) ?: return null
-        return createTaskInstance(
-            name = template.name,
-            type = template.type,
+        val existing = instanceDao.getByTemplateAndDate(templateId, localDate.toString())
+        if (existing != null) return existing.id
+        val categoryName = template.categoryId?.let { categoryDao.getById(it)?.name }
+        val now = clock.nowEpochMillis()
+        val instance = buildInstanceFromTemplate(
+            template = template,
             localDate = localDate,
-            targetDurationMillis = template.defaultTargetDurationMillis,
-            startMinuteOfDay = template.defaultStartMinuteOfDay,
-            endMinuteOfDay = template.defaultEndMinuteOfDay,
-            colorArgb = template.colorArgb,
-            tag = template.tag,
-            templateId = template.id
+            categoryName = categoryName,
+            nowEpoch = now,
+            sortOrder = defaultSortOrder(
+                priority = template.priority,
+                minuteOfDay = template.preferredStartMinuteOfDay ?: template.defaultStartMinuteOfDay
+            ),
+            generated = false
         )
+        database.withTransaction {
+            instanceDao.upsert(instance)
+            if (instance.type != TaskTypes.TIME_WINDOW) {
+                runtimeStateDao.upsert(TaskRuntimeStateEntity.idle(instance.id, now))
+            }
+            insertEventLocked(instance.id, template.id, TaskEventTypes.CREATE_INSTANCE, now, clock.elapsedRealtimeMillis(), "{\"type\":\"${template.type}\"}")
+        }
+        return instance.id
     }
 
-    suspend fun createTaskInstance(
-        name: String,
-        type: String,
-        localDate: LocalDate,
-        targetDurationMillis: Long? = null,
-        startMinuteOfDay: Int? = null,
-        endMinuteOfDay: Int? = null,
-        colorArgb: Long,
-        tag: String? = null,
-        templateId: String? = null
-    ): String {
-        val now = clock.nowEpochMillis()
-        val instanceId = idProvider.newId()
-        val plannedStart = if (type == TaskTypes.TIME_WINDOW && startMinuteOfDay != null) {
-            epochForMinute(localDate, startMinuteOfDay)
-        } else {
-            null
-        }
-        val plannedEnd = if (type == TaskTypes.TIME_WINDOW && startMinuteOfDay != null && endMinuteOfDay != null) {
-            val endDate = if (endMinuteOfDay <= startMinuteOfDay) localDate.plusDays(1) else localDate
-            epochForMinute(endDate, endMinuteOfDay)
-        } else {
-            null
-        }
-        val status = initialStatus(type, plannedStart, plannedEnd, now)
+    suspend fun archiveTemplate(templateId: String) {
         database.withTransaction {
-            val instance = TaskInstanceEntity(
-                id = instanceId,
-                templateId = templateId,
-                localDate = localDate.toString(),
-                nameSnapshot = name.sanitizedName(),
-                type = type,
-                status = status,
-                targetDurationMillis = if (type == TaskTypes.COUNT_DOWN) targetDurationMillis?.coerceAtLeast(1_000L) else null,
-                plannedStartEpochMillis = plannedStart,
-                plannedEndEpochMillis = plannedEnd,
-                colorArgb = colorArgb,
-                tagSnapshot = tag?.trim()?.ifBlank { null },
-                createdAtEpochMillis = now,
-                updatedAtEpochMillis = now,
-                completedAtEpochMillis = null,
-                missedAtEpochMillis = if (status == TaskStatuses.MISSED) now else null,
-                cancelledAtEpochMillis = null,
-                completionSource = null,
-                missSource = if (status == TaskStatuses.MISSED) MissSources.DEADLINE_AUTO else null,
-                archived = false,
-                archivedAtEpochMillis = null
-            )
-            instanceDao.upsert(instance)
-            if (type == TaskTypes.COUNT_UP || type == TaskTypes.COUNT_DOWN) {
-                runtimeStateDao.upsert(TaskRuntimeStateEntity.idle(instanceId, now))
-            }
-            insertEventLocked(
-                instanceId = instanceId,
-                templateId = templateId,
-                eventType = TaskEventTypes.CREATE_INSTANCE,
-                atEpochMillis = now,
-                elapsedRealtimeMillis = clock.elapsedRealtimeMillis(),
-                payloadJson = "{\"type\":\"$type\",\"localDate\":\"$localDate\"}"
-            )
+            val template = templateDao.getById(templateId) ?: return@withTransaction
+            templateDao.upsert(template.copy(archived = true, updatedAtEpochMillis = clock.nowEpochMillis()))
+            insertEventLocked(templateId, templateId, TaskEventTypes.ARCHIVE, clock.nowEpochMillis(), clock.elapsedRealtimeMillis(), "{\"level\":\"template\"}")
         }
-        return instanceId
+    }
+
+    suspend fun updateResultNote(instanceId: String, note: String) {
+        database.withTransaction {
+            val now = clock.nowEpochMillis()
+            val instance = instanceDao.getById(instanceId) ?: return@withTransaction
+            instanceDao.upsert(instance.copy(resultNote = note.trim().ifBlank { null }, updatedAtEpochMillis = now))
+            insertEventLocked(instance.id, instance.templateId, TaskEventTypes.UPDATE_NOTE, now, clock.elapsedRealtimeMillis(), "{\"note\":true}")
+        }
     }
 
     suspend fun getRunningTimedTasksWithStates(): List<TimedTaskWithState> {
@@ -209,24 +390,26 @@ class RoomTimerRepository(
             val now = clock.nowEpochMillis()
             val nowElapsed = clock.elapsedRealtimeMillis()
             val instance = instanceDao.getById(instanceId) ?: return@withTransaction
-            if (instance.archived) return@withTransaction
-            if (instance.type == TaskTypes.TIME_WINDOW) return@withTransaction
+            if (instance.archived || instance.type == TaskTypes.TIME_WINDOW) return@withTransaction
             if (instance.status !in listOf(TaskStatuses.READY, TaskStatuses.PAUSED)) return@withTransaction
             val existing = runtimeStateDao.getByInstanceId(instanceId) ?: TaskRuntimeStateEntity.idle(instanceId, now)
-            val accumulated = if (existing.status == TaskStatuses.PAUSED) existing.accumulatedMillis else 0L
-            val runningInstance = instance.copy(
-                status = TaskStatuses.RUNNING,
-                updatedAtEpochMillis = now,
-                completedAtEpochMillis = null,
-                completionSource = null,
-                cancelledAtEpochMillis = null
+            val accumulated = if (existing.status == TaskStatuses.PAUSED) existing.accumulatedMillis else existing.accumulatedMillis
+            instanceDao.upsert(
+                instance.copy(
+                    status = TaskStatuses.RUNNING,
+                    updatedAtEpochMillis = now,
+                    completedAtEpochMillis = null,
+                    completionSource = null,
+                    cancelledAtEpochMillis = null,
+                    missedAtEpochMillis = null,
+                    missSource = null
+                )
             )
-            instanceDao.upsert(runningInstance)
             runtimeStateDao.upsert(
                 existing.copy(
                     status = TaskStatuses.RUNNING,
                     accumulatedMillis = if (instance.type == TaskTypes.COUNT_DOWN) {
-                        min(accumulated, instance.targetDurationMillis ?: Long.MAX_VALUE)
+                        min(accumulated, resolvedCountdownTarget(instance) ?: Long.MAX_VALUE)
                     } else {
                         accumulated
                     },
@@ -250,7 +433,7 @@ class RoomTimerRepository(
             if (state.status != TaskStatuses.RUNNING || instance.status != TaskStatuses.RUNNING) return@withTransaction
             val segment = TimerMath.clampCountdownSegment(instance, state, TimerMath.currentOpenSegmentMillis(state, nowElapsed))
             val newAccumulated = state.accumulatedMillis + segment
-            val completed = instance.type == TaskTypes.COUNT_DOWN && instance.targetDurationMillis != null && newAccumulated >= instance.targetDurationMillis
+            val completed = instance.type == TaskTypes.COUNT_DOWN && (resolvedCountdownTarget(instance)?.let { newAccumulated >= it } == true)
             insertSessionForOpenSegmentLocked(
                 instance = instance,
                 state = state,
@@ -260,7 +443,7 @@ class RoomTimerRepository(
             )
             if (completed) {
                 markInstanceCompletedLocked(instance, CompletionSources.COUNTDOWN_AUTO, now, nowElapsed)
-                runtimeStateDao.upsert(state.completedCopy(instance.targetDurationMillis ?: newAccumulated, now))
+                runtimeStateDao.upsert(state.completedCopy(resolvedCountdownTarget(instance) ?: newAccumulated, now))
             } else {
                 instanceDao.upsert(instance.copy(status = TaskStatuses.PAUSED, updatedAtEpochMillis = now))
                 runtimeStateDao.upsert(
@@ -321,18 +504,13 @@ class RoomTimerRepository(
             val instance = instanceDao.getById(instanceId) ?: return@withTransaction
             if (instance.archived) return@withTransaction
             if (instance.status in listOf(TaskStatuses.COMPLETED, TaskStatuses.MISSED, TaskStatuses.CANCELLED)) return@withTransaction
-            if (
-                instance.type == TaskTypes.TIME_WINDOW &&
-                instance.plannedEndEpochMillis != null &&
-                now >= instance.plannedEndEpochMillis
-            ) {
-                val source = MissSources.DEADLINE_AUTO
+            if (instance.type == TaskTypes.TIME_WINDOW && instance.plannedEndEpochMillis != null && now >= instance.plannedEndEpochMillis) {
                 instanceDao.upsert(
                     instance.copy(
                         status = TaskStatuses.MISSED,
                         updatedAtEpochMillis = now,
                         missedAtEpochMillis = now,
-                        missSource = source
+                        missSource = MissSources.DEADLINE_AUTO
                     )
                 )
                 insertEventLocked(instance.id, instance.templateId, TaskEventTypes.MISS, now, nowElapsed, "{\"source\":\"cancel_after_deadline\"}")
@@ -447,12 +625,13 @@ class RoomTimerRepository(
                     return@forEach
                 }
 
-                if (instance.type == TaskTypes.COUNT_DOWN && instance.targetDurationMillis != null) {
-                    val needed = max(0L, instance.targetDurationMillis - state.accumulatedMillis)
+                if (instance.type == TaskTypes.COUNT_DOWN) {
+                    val target = resolvedCountdownTarget(instance) ?: return@forEach
+                    val needed = max(0L, target - state.accumulatedMillis)
                     if (wallDelta >= needed) {
                         insertSessionLocked(instance, startedAtEpoch, needed, SessionSources.RECOVERED_COMPLETED, now)
                         markInstanceCompletedLocked(instance, CompletionSources.RECOVERED_AUTO, now, nowElapsed)
-                        runtimeStateDao.upsert(state.completedCopy(instance.targetDurationMillis, now))
+                        runtimeStateDao.upsert(state.completedCopy(target, now))
                         completed.add(CompletedTaskNotification(instance.id, instance.nameSnapshot))
                     } else {
                         insertSessionLocked(instance, startedAtEpoch, wallDelta, SessionSources.RECOVERED_PARTIAL, now)
@@ -487,6 +666,150 @@ class RoomTimerRepository(
             completedCountdowns = completed + deadlineResult.completedCountdowns,
             missedTimeWindows = deadlineResult.missedTimeWindows
         )
+    }
+
+    private suspend fun createStandaloneTaskInstance(draft: TaskDraft, localDate: LocalDate): String {
+        val category = draft.categoryId?.let { categoryDao.getById(it) }
+        val now = clock.nowEpochMillis()
+        val instanceId = idProvider.newId()
+        val preferredStartEpoch = parseMinuteOfDay(draft.preferredStartTime ?: if (draft.type != TaskTypes.TIME_WINDOW) draft.startTime else null)?.let {
+            epochForMinute(localDate, it)
+        }
+        val plannedStart = if (draft.type == TaskTypes.TIME_WINDOW) {
+            parseMinuteOfDay(draft.startTime)?.let { epochForMinute(localDate, it) }
+        } else {
+            preferredStartEpoch
+        }
+        val plannedEnd = if (draft.type == TaskTypes.TIME_WINDOW) {
+            val startMinute = parseMinuteOfDay(draft.startTime)
+            val endMinute = parseMinuteOfDay(draft.endTime)
+            if (startMinute != null && endMinute != null) {
+                val endDate = if (endMinute <= startMinute) localDate.plusDays(1) else localDate
+                epochForMinute(endDate, endMinute)
+            } else {
+                null
+            }
+        } else {
+            null
+        }
+        val sessionMode = sanitizeSessionMode(draft.sessionMode, draft.type)
+        val tempInstance = TaskInstanceEntity(
+            id = instanceId,
+            templateId = null,
+            localDate = localDate.toString(),
+            nameSnapshot = draft.name.sanitizedName(),
+            type = draft.type,
+            status = TaskStatuses.READY,
+            targetDurationMillis = countdownTargetDuration(draft),
+            preferredStartEpochMillis = preferredStartEpoch,
+            plannedStartEpochMillis = plannedStart,
+            plannedEndEpochMillis = plannedEnd,
+            colorArgb = draft.colorArgb,
+            categoryIdSnapshot = category?.id,
+            categoryNameSnapshot = category?.name,
+            projectNameSnapshot = draft.projectName?.trim()?.ifBlank { null },
+            tagsSnapshot = draft.tags?.normalizedCsv(),
+            noteSnapshot = draft.note?.trim()?.ifBlank { null },
+            priority = sanitizePriority(draft.priority),
+            remindersEnabled = draft.remindersEnabled,
+            remindAtStart = draft.remindAtStart,
+            remindBeforeEndMinutes = draft.remindBeforeEndMinutes?.coerceAtLeast(0),
+            remindAtDeadline = draft.remindAtDeadline,
+            countTowardGoals = draft.countTowardGoals,
+            sessionMode = sessionMode,
+            pomodoroWorkMinutes = sanitizePomodoroMinutes(draft.pomodoroWorkMinutes),
+            pomodoroBreakMinutes = sanitizePomodoroBreakMinutes(draft.pomodoroBreakMinutes),
+            pomodoroCycles = sanitizePomodoroCycles(draft.pomodoroCycles),
+            sortOrder = defaultSortOrder(
+                priority = sanitizePriority(draft.priority),
+                minuteOfDay = parseMinuteOfDay(draft.preferredStartTime ?: draft.startTime)
+            ),
+            createdAtEpochMillis = now,
+            updatedAtEpochMillis = now,
+            completedAtEpochMillis = null,
+            missedAtEpochMillis = null,
+            cancelledAtEpochMillis = null,
+            completionSource = null,
+            missSource = null,
+            resultNote = null,
+            archived = false,
+            archivedAtEpochMillis = null
+        )
+        val instance = tempInstance.copy(status = initialStatus(tempInstance, now))
+        database.withTransaction {
+            instanceDao.upsert(instance)
+            if (instance.type != TaskTypes.TIME_WINDOW) {
+                runtimeStateDao.upsert(TaskRuntimeStateEntity.idle(instance.id, now))
+            }
+            insertEventLocked(instance.id, null, TaskEventTypes.CREATE_INSTANCE, now, clock.elapsedRealtimeMillis(), "{\"type\":\"${instance.type}\"}")
+        }
+        return instance.id
+    }
+
+    private fun buildInstanceFromTemplate(
+        template: TaskTemplateEntity,
+        localDate: LocalDate,
+        categoryName: String?,
+        nowEpoch: Long,
+        sortOrder: Int,
+        generated: Boolean
+    ): TaskInstanceEntity {
+        val preferredStartEpoch = template.preferredStartMinuteOfDay?.let { epochForMinute(localDate, it) }
+        val plannedStart = template.defaultStartMinuteOfDay?.let { epochForMinute(localDate, it) }
+        val plannedEnd = if (template.type == TaskTypes.TIME_WINDOW && template.defaultStartMinuteOfDay != null && template.defaultEndMinuteOfDay != null) {
+            val endDate = if (template.defaultEndMinuteOfDay <= template.defaultStartMinuteOfDay) localDate.plusDays(1) else localDate
+            epochForMinute(endDate, template.defaultEndMinuteOfDay)
+        } else {
+            null
+        }
+        val base = TaskInstanceEntity(
+            id = idProvider.newId(),
+            templateId = template.id,
+            localDate = localDate.toString(),
+            nameSnapshot = template.name.sanitizedName(),
+            type = template.type,
+            status = TaskStatuses.READY,
+            targetDurationMillis = if (template.type == TaskTypes.COUNT_DOWN) {
+                if (template.sessionMode == SessionModes.POMODORO) {
+                    tempPomodoroTarget(template)
+                } else {
+                    template.defaultTargetDurationMillis
+                }
+            } else {
+                null
+            },
+            preferredStartEpochMillis = preferredStartEpoch,
+            plannedStartEpochMillis = if (template.type == TaskTypes.TIME_WINDOW) plannedStart else preferredStartEpoch,
+            plannedEndEpochMillis = plannedEnd,
+            colorArgb = template.colorArgb,
+            categoryIdSnapshot = template.categoryId,
+            categoryNameSnapshot = categoryName,
+            projectNameSnapshot = template.projectName,
+            tagsSnapshot = template.tagsCsv,
+            noteSnapshot = template.note,
+            priority = sanitizePriority(template.priority),
+            remindersEnabled = template.remindersEnabled,
+            remindAtStart = template.remindAtStart,
+            remindBeforeEndMinutes = template.remindBeforeEndMinutes,
+            remindAtDeadline = template.remindAtDeadline,
+            countTowardGoals = template.countTowardGoals,
+            sessionMode = template.sessionMode,
+            pomodoroWorkMinutes = template.pomodoroWorkMinutes,
+            pomodoroBreakMinutes = template.pomodoroBreakMinutes,
+            pomodoroCycles = template.pomodoroCycles,
+            sortOrder = sortOrder,
+            createdAtEpochMillis = nowEpoch,
+            updatedAtEpochMillis = nowEpoch,
+            completedAtEpochMillis = null,
+            missedAtEpochMillis = null,
+            cancelledAtEpochMillis = null,
+            completionSource = null,
+            missSource = null,
+            resultNote = if (generated) null else null,
+            archived = false,
+            archivedAtEpochMillis = null
+        )
+        return base.copy(status = initialStatus(base, nowEpoch))
     }
 
     private suspend fun completeCountUpLocked(instance: TaskInstanceEntity, now: Long, nowElapsed: Long) {
@@ -530,7 +853,7 @@ class RoomTimerRepository(
         nowEpoch: Long,
         nowElapsed: Long
     ): CompletedTaskNotification? {
-        val target = instance.targetDurationMillis ?: return null
+        val target = resolvedCountdownTarget(instance) ?: return null
         val segment = TimerMath.clampCountdownSegment(instance, state, TimerMath.currentOpenSegmentMillis(state, nowElapsed))
         insertSessionForOpenSegmentLocked(instance, state, nowEpoch, segment, sessionSource)
         markInstanceCompletedLocked(instance, completionSource, nowEpoch, nowElapsed)
@@ -617,11 +940,11 @@ class RoomTimerRepository(
         )
     }
 
-    private fun initialStatus(type: String, start: Long?, end: Long?, now: Long): String = when (type) {
+    private fun initialStatus(instance: TaskInstanceEntity, now: Long): String = when (instance.type) {
         TaskTypes.TIME_WINDOW -> when {
-            end == null || start == null -> TaskStatuses.PLANNED
-            now >= end -> TaskStatuses.MISSED
-            now >= start -> TaskStatuses.READY
+            instance.plannedEndEpochMillis == null || instance.plannedStartEpochMillis == null -> TaskStatuses.PLANNED
+            now >= instance.plannedEndEpochMillis -> TaskStatuses.MISSED
+            now >= instance.plannedStartEpochMillis -> TaskStatuses.READY
             else -> TaskStatuses.PLANNED
         }
         else -> TaskStatuses.READY
@@ -634,7 +957,75 @@ class RoomTimerRepository(
             .toEpochMilli()
     }
 
+    private fun parseMinuteOfDay(value: String?): Int? {
+        if (value.isNullOrBlank()) return null
+        val parts = value.trim().split(":")
+        if (parts.size != 2) return null
+        val hour = parts[0].toIntOrNull()?.coerceIn(0, 23) ?: return null
+        val minute = parts[1].toIntOrNull()?.coerceIn(0, 59) ?: return null
+        return hour * 60 + minute
+    }
+
+    private fun tempPomodoroTarget(template: TaskTemplateEntity): Long? {
+        val work = (template.pomodoroWorkMinutes ?: 25).coerceAtLeast(1) * 60_000L
+        val breakMillis = (template.pomodoroBreakMinutes ?: 5).coerceAtLeast(0) * 60_000L
+        val cycles = (template.pomodoroCycles ?: 4).coerceAtLeast(1)
+        return work * cycles + breakMillis * max(0, cycles - 1)
+    }
+
+    private fun countdownTargetDuration(draft: TaskDraft): Long? {
+        if (draft.type != TaskTypes.COUNT_DOWN) return null
+        return if (sanitizeSessionMode(draft.sessionMode, draft.type) == SessionModes.POMODORO) {
+            val work = (draft.pomodoroWorkMinutes ?: 25).coerceAtLeast(1) * 60_000L
+            val breakMillis = (draft.pomodoroBreakMinutes ?: 5).coerceAtLeast(0) * 60_000L
+            val cycles = (draft.pomodoroCycles ?: 4).coerceAtLeast(1)
+            work * cycles + breakMillis * max(0, cycles - 1)
+        } else {
+            (draft.countdownMinutes ?: 25L).coerceAtLeast(1L) * 60_000L
+        }
+    }
+
+    private fun resolvedCountdownTarget(instance: TaskInstanceEntity): Long? =
+        if (instance.type == TaskTypes.COUNT_DOWN) {
+            PomodoroMath.totalProgramMillis(instance) ?: instance.targetDurationMillis
+        } else {
+            null
+        }
+
+    private fun sanitizePriority(priority: String): String = when (priority) {
+        TaskPriorities.LOW, TaskPriorities.HIGH -> priority
+        else -> TaskPriorities.MEDIUM
+    }
+
+    private fun sanitizeSessionMode(mode: String, type: String): String {
+        if (type != TaskTypes.COUNT_DOWN) return SessionModes.STANDARD
+        return if (mode == SessionModes.POMODORO) SessionModes.POMODORO else SessionModes.STANDARD
+    }
+
+    private fun sanitizePomodoroMinutes(value: Int?): Int? = value?.coerceAtLeast(1)
+
+    private fun sanitizePomodoroBreakMinutes(value: Int?): Int? = value?.coerceAtLeast(0)
+
+    private fun sanitizePomodoroCycles(value: Int?): Int? = value?.coerceAtLeast(1)
+
+    private fun defaultSortOrder(priority: String, minuteOfDay: Int?): Int {
+        val priorityWeight = when (priority) {
+            TaskPriorities.HIGH -> 30_000
+            TaskPriorities.MEDIUM -> 20_000
+            else -> 10_000
+        }
+        val minuteWeight = minuteOfDay?.let { 2_000 - it.coerceIn(0, 1_439) } ?: 500
+        return priorityWeight + minuteWeight
+    }
+
     private fun String.sanitizedName(): String = trim().ifBlank { untitledTaskName }
+
+    private fun String.normalizedCsv(): String? = split(",")
+        .map { it.trim() }
+        .filter { it.isNotBlank() }
+        .distinct()
+        .takeIf { it.isNotEmpty() }
+        ?.joinToString(",")
 
     private fun TaskRuntimeStateEntity.completedCopy(accumulated: Long, now: Long): TaskRuntimeStateEntity = copy(
         status = TaskStatuses.COMPLETED,

@@ -8,6 +8,15 @@ import kotlin.math.max
 import kotlin.math.min
 
 object TimerMath {
+    private fun countdownTargetMillis(instance: TaskInstanceEntity): Long? {
+        if (instance.type != TaskTypes.COUNT_DOWN) return null
+        return if (PomodoroMath.isPomodoro(instance)) {
+            PomodoroMath.totalProgramMillis(instance)
+        } else {
+            instance.targetDurationMillis
+        }
+    }
+
     fun effectiveElapsedMillis(
         state: TaskRuntimeStateEntity?,
         nowElapsedRealtimeMillis: Long
@@ -33,8 +42,7 @@ object TimerMath {
         state: TaskRuntimeStateEntity?,
         nowElapsedRealtimeMillis: Long
     ): Long? {
-        if (instance.type != TaskTypes.COUNT_DOWN) return null
-        val target = instance.targetDurationMillis ?: return null
+        val target = countdownTargetMillis(instance) ?: return null
         return max(0L, target - effectiveElapsedMillis(state, nowElapsedRealtimeMillis))
     }
 
@@ -55,7 +63,7 @@ object TimerMath {
         state: TaskRuntimeStateEntity?,
         nowElapsedRealtimeMillis: Long
     ): Boolean {
-        val target = instance.targetDurationMillis ?: return false
+        val target = countdownTargetMillis(instance) ?: return false
         return instance.type == TaskTypes.COUNT_DOWN &&
             state?.status == TaskStatuses.RUNNING &&
             effectiveElapsedMillis(state, nowElapsedRealtimeMillis) >= target
@@ -67,7 +75,7 @@ object TimerMath {
         segmentMillis: Long
     ): Long {
         if (instance.type != TaskTypes.COUNT_DOWN) return max(0L, segmentMillis)
-        val target = instance.targetDurationMillis ?: return max(0L, segmentMillis)
+        val target = countdownTargetMillis(instance) ?: return max(0L, segmentMillis)
         val needed = max(0L, target - state.accumulatedMillis)
         return min(max(0L, segmentMillis), needed)
     }

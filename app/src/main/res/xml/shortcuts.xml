@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutDisabledMessage="@string/shortcut_create_task_short"
+        android:shortcutId="create_task"
+        android:shortcutLongLabel="@string/shortcut_create_task_long"
+        android:shortcutShortLabel="@string/shortcut_create_task_short">
+        <intent
+            android:action="com.timer.app.action.CREATE_TASK_SHORTCUT"
+            android:targetClass="com.timer.app.MainActivity"
+            android:targetPackage="com.timer.app" />
+    </shortcut>
+
+    <shortcut
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutDisabledMessage="@string/shortcut_create_routine_short"
+        android:shortcutId="create_routine"
+        android:shortcutLongLabel="@string/shortcut_create_routine_long"
+        android:shortcutShortLabel="@string/shortcut_create_routine_short">
+        <intent
+            android:action="com.timer.app.action.CREATE_ROUTINE_SHORTCUT"
+            android:targetClass="com.timer.app.MainActivity"
+            android:targetPackage="com.timer.app" />
+    </shortcut>
+
+    <shortcut
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutDisabledMessage="@string/shortcut_open_focus_short"
+        android:shortcutId="open_focus"
+        android:shortcutLongLabel="@string/shortcut_open_focus_long"
+        android:shortcutShortLabel="@string/shortcut_open_focus_short">
+        <intent
+            android:action="com.timer.app.action.OPEN_FOCUS"
+            android:targetClass="com.timer.app.MainActivity"
+            android:targetPackage="com.timer.app" />
+    </shortcut>
+</shortcuts>

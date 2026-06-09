@@ -14,12 +14,16 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.timer.app.MainActivity
 import com.timer.app.R
+import com.timer.app.data.AlarmKinds
 import com.timer.app.data.CompletedTaskNotification
 import com.timer.app.data.MissedTaskNotification
+import com.timer.app.data.TaskInstanceEntity
 import com.timer.app.data.TaskStatuses
 import com.timer.app.data.TaskTypes
 import com.timer.app.data.TimedTaskWithState
 import com.timer.app.domain.DurationFormatter
+import com.timer.app.domain.PomodoroMath
+import com.timer.app.domain.PomodoroPhaseTypes
 import com.timer.app.domain.TimerMath
 import com.timer.app.service.TimerForegroundService
 
@@ -36,6 +40,13 @@ class TimerNotificationController(private val context: Context) {
             description = context.getString(R.string.notification_channel_running_description)
             setShowBadge(false)
         }
+        val reminders = NotificationChannel(
+            CHANNEL_REMINDERS,
+            context.getString(R.string.notification_channel_reminders),
+            NotificationManager.IMPORTANCE_DEFAULT
+        ).apply {
+            description = context.getString(R.string.notification_channel_reminders_description)
+        }
         val alerts = NotificationChannel(
             CHANNEL_ALERTS,
             context.getString(R.string.notification_channel_alerts),
@@ -45,6 +56,7 @@ class TimerNotificationController(private val context: Context) {
         }
         val manager = context.getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(foreground)
+        manager.createNotificationChannel(reminders)
         manager.createNotificationChannel(alerts)
     }
 
@@ -56,14 +68,33 @@ class TimerNotificationController(private val context: Context) {
             running.size == 1 -> primary?.instance?.nameSnapshot ?: context.getString(R.string.notification_foreground_title_single_fallback)
             else -> context.getString(R.string.notification_foreground_title_multi, running.size)
         }
-        val text = if (primary == null) {
-            context.getString(R.string.notification_foreground_text_sync)
-        } else {
-            val display = TimerMath.displayMillis(primary.instance, primary.state, nowElapsed)
-            if (primary.instance.type == TaskTypes.COUNT_DOWN) {
-                context.getString(R.string.notification_foreground_prefix_remaining, DurationFormatter.clock(display))
-            } else {
-                context.getString(R.string.notification_foreground_prefix_elapsed, DurationFormatter.clock(display))
+        val text = when {
+            primary == null -> context.getString(R.string.notification_foreground_text_sync)
+            PomodoroMath.isPomodoro(primary.instance) -> {
+                val phase = PomodoroMath.phaseFor(primary.instance, primary.state, nowElapsed)
+                if (phase == null || phase.phaseType == PomodoroPhaseTypes.DONE) {
+                    context.getString(R.string.notification_countdown_complete_text, primary.instance.nameSnapshot)
+                } else {
+                    context.getString(
+                        R.string.notification_pomodoro_phase,
+                        phase.cycleNumber,
+                        phase.totalCycles,
+                        if (phase.phaseType == PomodoroPhaseTypes.WORK) {
+                            context.getString(R.string.pomodoro_phase_work)
+                        } else {
+                            context.getString(R.string.pomodoro_phase_break)
+                        },
+                        DurationFormatter.clock(phase.phaseRemainingMillis)
+                    )
+                }
+            }
+            else -> {
+                val display = TimerMath.displayMillis(primary.instance, primary.state, nowElapsed)
+                if (primary.instance.type == TaskTypes.COUNT_DOWN) {
+                    context.getString(R.string.notification_foreground_prefix_remaining, DurationFormatter.clock(display))
+                } else {
+                    context.getString(R.string.notification_foreground_prefix_elapsed, DurationFormatter.clock(display))
+                }
             }
         }
 
@@ -84,10 +115,20 @@ class TimerNotificationController(private val context: Context) {
                 context.getString(R.string.action_pause),
                 serviceActionPendingIntent(TimerForegroundService.ACTION_PAUSE_INSTANCE, primary.instance.id, 10)
             )
+            val secondaryAction = if (primary.instance.type == TaskTypes.COUNT_UP) {
+                TimerForegroundService.ACTION_COMPLETE_INSTANCE
+            } else {
+                TimerForegroundService.ACTION_CANCEL_INSTANCE
+            }
+            val secondaryLabel = if (primary.instance.type == TaskTypes.COUNT_UP) {
+                context.getString(R.string.action_complete)
+            } else {
+                context.getString(R.string.action_cancel)
+            }
             builder.addAction(
                 0,
-                context.getString(R.string.action_cancel),
-                serviceActionPendingIntent(TimerForegroundService.ACTION_CANCEL_INSTANCE, primary.instance.id, 11)
+                secondaryLabel,
+                serviceActionPendingIntent(secondaryAction, primary.instance.id, 11)
             )
         }
         return builder.build()
@@ -103,6 +144,25 @@ class TimerNotificationController(private val context: Context) {
         .setCategory(NotificationCompat.CATEGORY_STATUS)
         .setPriority(NotificationCompat.PRIORITY_LOW)
         .build()
+
+    fun showReminder(instance: TaskInstanceEntity, kind: String) {
+        if (!canPostNotifications()) return
+        val text = when (kind) {
+            AlarmKinds.TASK_START -> context.getString(R.string.notification_reminder_start_text, instance.nameSnapshot)
+            AlarmKinds.WINDOW_PRE_END -> context.getString(R.string.notification_reminder_window_end_text, instance.nameSnapshot)
+            else -> context.getString(R.string.notification_reminder_generic_text, instance.nameSnapshot)
+        }
+        val notification = NotificationCompat.Builder(context, CHANNEL_REMINDERS)
+            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setContentTitle(context.getString(R.string.notification_reminder_title))
+            .setContentText(text)
+            .setContentIntent(activityPendingIntent())
+            .setAutoCancel(true)
+            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .build()
+        notificationManager.notify("${instance.id}:$kind".hashCode(), notification)
+    }
 
     fun showCountdownCompleted(completed: CompletedTaskNotification) {
         if (!canPostNotifications()) return
@@ -164,6 +224,7 @@ class TimerNotificationController(private val context: Context) {
 
     companion object {
         const val CHANNEL_RUNNING = "timer_running"
+        const val CHANNEL_REMINDERS = "timer_reminders"
         const val CHANNEL_ALERTS = "timer_alerts"
         const val FOREGROUND_NOTIFICATION_ID = 1001
     }
