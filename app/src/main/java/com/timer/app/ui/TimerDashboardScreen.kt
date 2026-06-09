@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -76,6 +75,7 @@ import com.timer.app.data.TaskSortModes
 import com.timer.app.data.TaskStatuses
 import com.timer.app.data.TaskTypes
 import com.timer.app.data.ThemeModes
+import com.timer.app.domain.DurationFormatter
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
