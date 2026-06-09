@@ -1,0 +1,121 @@
+﻿package com.timer.app.domain
+
+import com.timer.app.data.TaskInstanceEntity
+import com.timer.app.data.TaskRuntimeStateEntity
+import com.timer.app.data.TaskStatuses
+import com.timer.app.data.TaskTypes
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class TimerMathTest {
+    @Test
+    fun runningCountUpAddsElapsedDeltaToAccumulated() {
+        val state = runtimeState(
+            status = TaskStatuses.RUNNING,
+            accumulatedMillis = 10_000L,
+            startedAtElapsedRealtimeMillis = 100_000L
+        )
+
+        assertEquals(40_000L, TimerMath.effectiveElapsedMillis(state, 130_000L))
+    }
+
+    @Test
+    fun pausedStateDoesNotAddElapsedDelta() {
+        val state = runtimeState(
+            status = TaskStatuses.PAUSED,
+            accumulatedMillis = 10_000L,
+            startedAtElapsedRealtimeMillis = null
+        )
+
+        assertEquals(10_000L, TimerMath.effectiveElapsedMillis(state, 130_000L))
+    }
+
+    @Test
+    fun countdownRemainingIsClampedAtZeroAndExpiresOnlyWhenRunning() {
+        val instance = countdownInstance(targetMillis = 60_000L)
+        val state = runtimeState(
+            instanceId = instance.id,
+            status = TaskStatuses.RUNNING,
+            accumulatedMillis = 50_000L,
+            startedAtElapsedRealtimeMillis = 100_000L
+        )
+
+        assertEquals(0L, TimerMath.remainingMillis(instance, state, 120_000L))
+        assertTrue(TimerMath.isExpiredCountdown(instance, state, 120_000L))
+    }
+
+    @Test
+    fun countUpTaskNeverExpiresAsCountdown() {
+        val instance = taskInstance(type = TaskTypes.COUNT_UP)
+        val state = runtimeState(
+            instanceId = instance.id,
+            status = TaskStatuses.RUNNING,
+            accumulatedMillis = Long.MAX_VALUE / 4,
+            startedAtElapsedRealtimeMillis = 100_000L
+        )
+
+        assertFalse(TimerMath.isExpiredCountdown(instance, state, 120_000L))
+    }
+
+    @Test
+    fun countdownSegmentIsClampedToRemainingTargetDuration() {
+        val instance = countdownInstance(targetMillis = 60_000L)
+        val state = runtimeState(
+            instanceId = instance.id,
+            status = TaskStatuses.RUNNING,
+            accumulatedMillis = 50_000L
+        )
+
+        assertEquals(10_000L, TimerMath.clampCountdownSegment(instance, state, 45_000L))
+    }
+
+    private fun runtimeState(
+        instanceId: String = "task",
+        status: String,
+        accumulatedMillis: Long,
+        startedAtElapsedRealtimeMillis: Long? = 100_000L
+    ) = TaskRuntimeStateEntity(
+        instanceId = instanceId,
+        status = status,
+        accumulatedMillis = accumulatedMillis,
+        startedAtEpochMillis = if (startedAtElapsedRealtimeMillis == null) null else 1_000L,
+        startedAtElapsedRealtimeMillis = startedAtElapsedRealtimeMillis,
+        lastPersistedAtEpochMillis = 1_000L,
+        version = 1L
+    )
+
+    private fun countdownInstance(targetMillis: Long) = taskInstance(
+        type = TaskTypes.COUNT_DOWN,
+        targetDurationMillis = targetMillis
+    )
+
+    private fun taskInstance(
+        id: String = "task",
+        type: String,
+        status: String = TaskStatuses.READY,
+        targetDurationMillis: Long? = null
+    ) = TaskInstanceEntity(
+        id = id,
+        templateId = null,
+        localDate = "2026-06-09",
+        nameSnapshot = "Task",
+        type = type,
+        status = status,
+        targetDurationMillis = targetDurationMillis,
+        plannedStartEpochMillis = null,
+        plannedEndEpochMillis = null,
+        colorArgb = 0xFF0284C7,
+        tagSnapshot = null,
+        createdAtEpochMillis = 0L,
+        updatedAtEpochMillis = 0L,
+        completedAtEpochMillis = null,
+        missedAtEpochMillis = null,
+        cancelledAtEpochMillis = null,
+        completionSource = null,
+        missSource = null,
+        archived = false,
+        archivedAtEpochMillis = null
+    )
+}

@@ -1,0 +1,27 @@
+# Gradle
+.gradle/
+build/
+**/build/
+
+# Android / IntelliJ
+.idea/
+*.iml
+local.properties
+.externalNativeBuild/
+.cxx/
+
+# Kotlin
+.kotlin/
+
+# Signing / secrets
+*.jks
+*.keystore
+keystore.properties
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local Codex / report-bus artifacts
+.codex/
+.agent-report-bus/
