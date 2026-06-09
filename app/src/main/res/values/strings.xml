@@ -11,7 +11,7 @@
     <string name="dashboard_title">Timer</string>
     <string name="dashboard_subtitle">Timers, routines, calendar, insights, and reliable background tracking</string>
 
-    <string name="section_today_tasks">Today&#39;s tasks</string>
+    <string name="section_today_tasks">Today\'s tasks</string>
     <string name="today_tasks_subtitle_empty">Create a task to start</string>
     <string name="today_tasks_subtitle_count">%1$d tasks</string>
     <string name="section_suggestions">Suggestions</string>
@@ -206,7 +206,7 @@
     <string name="notification_task_missed_title">Task missed</string>
     <string name="notification_task_missed_text">%1$s was not completed in time</string>
     <string name="notification_reminder_title">Task reminder</string>
-    <string name="notification_reminder_start_text">It&#39;s time to start %1$s</string>
+    <string name="notification_reminder_start_text">It\'s time to start %1$s</string>
     <string name="notification_reminder_window_end_text">%1$s is close to its window end</string>
     <string name="notification_reminder_generic_text">Check %1$s</string>
     <string name="notification_pomodoro_phase">Cycle %1$d/%2$d · %3$s · %4$s left</string>
