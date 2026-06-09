@@ -13,6 +13,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -168,6 +169,70 @@ class StatsCalculatorTest {
         assertEquals(1, stats.completedTodayCount)
         assertEquals(20 * 60_000L, stats.trackedTodayMillis)
         assertEquals(selectedDate, stats.lastSevenDays.last().date)
+    }
+
+    @Test
+    fun calculateExcludesArchivedAndFutureInstancesFromInsightBreakdowns() {
+        val referenceDate = LocalDate.of(2026, 6, 8)
+        val completed = instance(
+            id = "completed",
+            name = "Write",
+            type = TaskTypes.COUNT_UP,
+            status = TaskStatuses.COMPLETED,
+            categoryName = "Work",
+            projectName = "App"
+        )
+        val futureGenerated = instance(
+            id = "future",
+            name = "Future plan",
+            type = TaskTypes.COUNT_UP,
+            status = TaskStatuses.READY,
+            categoryName = "Work",
+            projectName = "App"
+        ).copy(localDate = "2026-07-20")
+        val archived = instance(
+            id = "archived",
+            name = "Archived plan",
+            type = TaskTypes.COUNT_UP,
+            status = TaskStatuses.READY,
+            archived = true,
+            categoryName = "Archived",
+            projectName = "Old"
+        )
+
+        val stats = StatsCalculator.calculate(
+            instances = listOf(completed, futureGenerated, archived),
+            states = emptyList(),
+            sessions = listOf(
+                session(
+                    instanceId = completed.id,
+                    start = Instant.parse("2026-06-08T01:00:00Z").toEpochMilli(),
+                    durationMillis = 20 * 60_000L
+                ),
+                session(
+                    instanceId = futureGenerated.id,
+                    start = Instant.parse("2026-07-20T01:00:00Z").toEpochMilli(),
+                    durationMillis = 60 * 60_000L
+                )
+            ),
+            nowEpochMillis = Instant.parse("2026-06-08T13:00:00Z").toEpochMilli(),
+            nowElapsedRealtimeMillis = 0L,
+            zoneId = zone,
+            referenceDate = referenceDate
+        )
+
+        assertEquals(1, stats.plannedTodayCount)
+        assertEquals(1, stats.completedTodayCount)
+        val work = stats.categoryBreakdown.single { it.label == "Work" }
+        assertEquals(1, work.plannedCount)
+        assertEquals(1, work.completedCount)
+        assertEquals(20 * 60_000L, work.trackedMillis)
+        val app = stats.projectBreakdown.single { it.label == "App" }
+        assertEquals(1, app.plannedCount)
+        assertEquals(1, app.completedCount)
+        assertEquals(20 * 60_000L, app.trackedMillis)
+        assertFalse(stats.categoryBreakdown.any { it.label == "Archived" })
+        assertFalse(stats.projectBreakdown.any { it.label == "Old" })
     }
 
     private fun instance(

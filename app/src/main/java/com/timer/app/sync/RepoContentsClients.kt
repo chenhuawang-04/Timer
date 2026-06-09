@@ -48,7 +48,7 @@ internal interface RepoContentsClient {
     )
 }
 
-private abstract class BaseRepoContentsClient : RepoContentsClient {
+internal abstract class BaseRepoContentsClient : RepoContentsClient {
     override fun readFile(
         configuration: CloudSyncConfiguration,
         accessToken: String,
@@ -166,7 +166,6 @@ private abstract class BaseRepoContentsClient : RepoContentsClient {
         return try {
             val code = responseCode
             if (code == HttpURLConnection.HTTP_NOT_FOUND && returnNullOnNotFound) {
-                inputStream?.close()
                 errorStream?.close()
                 return null
             }

@@ -105,7 +105,8 @@ object StatsCalculator {
         referenceDate: LocalDate = Instant.ofEpochMilli(nowEpochMillis).atZone(zoneId).toLocalDate(),
         weekStartsOn: DayOfWeek = DayOfWeek.MONDAY
     ): StatsSummary {
-        val instanceById = instances.associateBy { it.id }
+        val activeInstances = instances.filterNot { it.archived }
+        val instanceById = activeInstances.associateBy { it.id }
         val today = referenceDate
         val todayString = today.toString()
         val weekStart = today.with(TemporalAdjusters.previousOrSame(weekStartsOn))
@@ -118,8 +119,8 @@ object StatsCalculator {
 
         val intervals = buildList {
             sessions.forEach { session ->
-                val instance = instanceById[session.instanceId]
-                if (session.endedAtEpochMillis > session.startedAtEpochMillis && instance?.status != TaskStatuses.CANCELLED) {
+                val instance = instanceById[session.instanceId] ?: return@forEach
+                if (session.endedAtEpochMillis > session.startedAtEpochMillis && instance.status != TaskStatuses.CANCELLED) {
                     add(
                         TimedInterval(
                             instanceId = session.instanceId,
@@ -164,7 +165,12 @@ object StatsCalculator {
             }
         }
 
-        val todayInstances = instances.filter { it.localDate == todayString }
+        val countedSessions = sessions.filter { session ->
+            val instance = instanceById[session.instanceId] ?: return@filter false
+            session.endedAtEpochMillis > session.startedAtEpochMillis && instance.status != TaskStatuses.CANCELLED
+        }
+
+        val todayInstances = activeInstances.filter { it.localDate == todayString }
         val plannedToday = todayInstances.filterNot { it.status == TaskStatuses.CANCELLED }
         val completedToday = todayInstances.filter { it.status == TaskStatuses.COMPLETED }
         val missedToday = todayInstances.filter { it.status == TaskStatuses.MISSED }
@@ -175,8 +181,8 @@ object StatsCalculator {
         val timeWindowDenominator = timeWindowCompleted.size + timeWindowMissed.size
         val timeWindowRate = if (timeWindowDenominator == 0) 0f else timeWindowCompleted.size.toFloat() / timeWindowDenominator.toFloat()
 
-        val weekInstances = instances.filter { instance ->
-            val date = LocalDate.parse(instance.localDate)
+        val weekInstances = activeInstances.filter { instance ->
+            val date = instance.localDateOrNull() ?: return@filter false
             !date.isBefore(weekStart) && !date.isAfter(today)
         }
         val weekPlanned = weekInstances.count { it.status != TaskStatuses.CANCELLED }
@@ -194,7 +200,7 @@ object StatsCalculator {
 
         val lastSevenDays = lastSevenDates.map { date ->
             val dateString = date.toString()
-            val dayInstances = instances.filter { it.localDate == dateString }
+            val dayInstances = activeInstances.filter { it.localDate == dateString }
             val dayCompleted = dayInstances.count { it.status == TaskStatuses.COMPLETED }
             val dayPlanned = dayInstances.count { it.status != TaskStatuses.CANCELLED }
             val dayWindow = dayInstances.filter { it.type == TaskTypes.TIME_WINDOW }
@@ -217,8 +223,9 @@ object StatsCalculator {
             )
         }
 
-        val completionDates = instances.filter { it.status == TaskStatuses.COMPLETED }
-            .map { LocalDate.parse(it.localDate) }
+        val completionDates = activeInstances.filter { it.status == TaskStatuses.COMPLETED }
+            .mapNotNull { it.localDateOrNull() }
+            .filterNot { it.isAfter(today) }
             .distinct()
             .sorted()
         val currentStreak = calculateCurrentStreak(completionDates, today)
@@ -235,11 +242,16 @@ object StatsCalculator {
                 )
             }
 
-        val categoryBreakdown = buildBreakdown(instances, dailyTrackedTotals, intervalLookup = intervals, instanceById = instanceById) { instance ->
+        val breakdownInstances = activeInstances.filter { instance ->
+            val date = instance.localDateOrNull() ?: return@filter false
+            !date.isAfter(today)
+        }
+
+        val categoryBreakdown = buildBreakdown(breakdownInstances, intervalLookup = intervals, instanceById = instanceById) { instance ->
             instance.categoryNameSnapshot?.ifBlank { null } ?: "Uncategorized"
         }
 
-        val projectBreakdown = buildBreakdown(instances, dailyTrackedTotals, intervalLookup = intervals, instanceById = instanceById) { instance ->
+        val projectBreakdown = buildBreakdown(breakdownInstances, intervalLookup = intervals, instanceById = instanceById) { instance ->
             instance.projectNameSnapshot?.ifBlank { null } ?: "General"
         }
 
@@ -265,8 +277,8 @@ object StatsCalculator {
             plannedWindowTodayMillis = timeWindowToday.sumOf { it.plannedDurationMillis() },
             completedWindowTodayMillis = timeWindowCompleted.sumOf { it.plannedDurationMillis() },
             missedWindowTodayMillis = timeWindowMissed.sumOf { it.plannedDurationMillis() },
-            averageSessionMillis = if (sessions.isEmpty()) 0L else sessions.map { it.durationMillis }.average().toLong(),
-            focusSessionsTodayCount = sessions.count { session ->
+            averageSessionMillis = if (countedSessions.isEmpty()) 0L else countedSessions.map { it.durationMillis }.average().toLong(),
+            focusSessionsTodayCount = countedSessions.count { session ->
                 Instant.ofEpochMilli(session.startedAtEpochMillis).atZone(zoneId).toLocalDate() == today
             },
             currentStreakDays = currentStreak,
@@ -305,13 +317,14 @@ object StatsCalculator {
 
     private fun buildBreakdown(
         instances: List<TaskInstanceEntity>,
-        dailyTrackedTotals: Map<LocalDate, Long>,
         intervalLookup: List<TimedInterval>,
         instanceById: Map<String, TaskInstanceEntity>,
         labelSelector: (TaskInstanceEntity) -> String
     ): List<BreakdownStat> {
+        val includedInstanceIds = instances.mapTo(mutableSetOf()) { it.id }
         val trackedByLabel = mutableMapOf<String, Long>()
         intervalLookup.forEach { interval ->
+            if (interval.instanceId !in includedInstanceIds) return@forEach
             val instance = instanceById[interval.instanceId] ?: return@forEach
             val label = labelSelector(instance)
             val duration = max(0L, interval.endEpochMillis - interval.startEpochMillis)
@@ -376,4 +389,7 @@ object StatsCalculator {
         val end = plannedEndEpochMillis ?: return 0L
         return max(0L, end - start)
     }
+
+    private fun TaskInstanceEntity.localDateOrNull(): LocalDate? =
+        runCatching { LocalDate.parse(localDate) }.getOrNull()
 }

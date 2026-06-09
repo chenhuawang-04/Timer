@@ -859,7 +859,10 @@ private fun CalendarScreen(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
-            Card(shape = RoundedCornerShape(24.dp)) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(24.dp)
+            ) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -1254,7 +1257,10 @@ private fun SettingsScreen(
 
 @Composable
 private fun SettingsCard(title: String, content: @Composable () -> Unit) {
-    Card(shape = RoundedCornerShape(24.dp)) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp)
+    ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             content()
@@ -1664,7 +1670,10 @@ private fun FocusModeDialog(
 
 @Composable
 private fun EmptyState(onCreate: () -> Unit) {
-    Card(shape = RoundedCornerShape(24.dp)) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp)
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1681,7 +1690,10 @@ private fun EmptyState(onCreate: () -> Unit) {
 
 @Composable
 private fun EmptyRoutineState(onCreate: () -> Unit) {
-    Card(shape = RoundedCornerShape(24.dp)) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp)
+    ) {
         Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(stringResource(R.string.empty_no_routines), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             Text(stringResource(R.string.empty_no_routines_body))
@@ -1692,7 +1704,10 @@ private fun EmptyRoutineState(onCreate: () -> Unit) {
 
 @Composable
 private fun EmptyCalendarSelection() {
-    Card(shape = RoundedCornerShape(24.dp)) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp)
+    ) {
         Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(stringResource(R.string.empty_calendar_day), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             Text(stringResource(R.string.empty_calendar_day_body))
