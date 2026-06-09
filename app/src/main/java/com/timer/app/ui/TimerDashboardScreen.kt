@@ -832,7 +832,7 @@ private fun RoutineCard(
                     )
                 }
                 OutlinedButton(onClick = { onArchiveRoutine(model.template.id) }) {
-                    Text(stringResource(R.string.action_archive))
+                    Text(stringResource(R.string.action_cancel_routine))
                 }
             }
         }

@@ -79,6 +79,7 @@
     <string name="action_import_backup">导入备份</string>
     <string name="action_create_today">生成今日任务</string>
     <string name="action_created_today">今日已生成</string>
+    <string name="action_cancel_routine">????</string>
 
     <string name="dialog_new_task">新建任务</string>
     <string name="dialog_new_routine">新建例行模板</string>
@@ -324,6 +325,7 @@
     <string name="shortcut_open_focus_long">打开专注模式</string>
 
     <string name="status_message_task_saved">任务已保存</string>
+    <string name="status_message_routine_cancelled">????????? %1$d ???????</string>
     <string name="status_message_category_saved">分类已保存</string>
     <string name="status_message_goal_saved">目标已保存</string>
     <string name="status_message_note_saved">备注已保存</string>

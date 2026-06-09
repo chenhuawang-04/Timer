@@ -329,8 +329,13 @@ class TimerViewModel(
 
     fun archiveRoutine(templateId: String) {
         viewModelScope.launch {
-            repository.archiveTemplate(templateId)
+            val result = repository.archiveTemplate(templateId)
+            result.cancelledInstanceIds.forEach(container.deadlineAlarmScheduler::cancelFor)
             container.automationCoordinator.afterMutation(selectedDate.value)
+            statusMessage.value = appContext.getString(
+                R.string.status_message_routine_cancelled,
+                result.cancelledInstanceIds.size
+            )
         }
     }
 

@@ -79,6 +79,7 @@
     <string name="action_import_backup">Import backup</string>
     <string name="action_create_today">Create today</string>
     <string name="action_created_today">Created today</string>
+    <string name="action_cancel_routine">Stop routine</string>
 
     <string name="dialog_new_task">New task</string>
     <string name="dialog_new_routine">New routine</string>
@@ -324,6 +325,7 @@
     <string name="shortcut_open_focus_long">Open focus mode</string>
 
     <string name="status_message_task_saved">Task saved</string>
+    <string name="status_message_routine_cancelled">Routine stopped. %1$d pending plans were cleared.</string>
     <string name="status_message_category_saved">Category saved</string>
     <string name="status_message_goal_saved">Goal saved</string>
     <string name="status_message_note_saved">Note saved</string>

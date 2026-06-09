@@ -46,6 +46,32 @@ data class ReconcileResult(
     val missedTimeWindows: List<MissedTaskNotification> = emptyList()
 )
 
+data class RoutineArchiveResult(
+    val templateId: String,
+    val cancelledInstanceIds: List<String> = emptyList()
+)
+
+internal object RoutineArchivePolicy {
+    private val cancellableStatuses = setOf(TaskStatuses.PLANNED, TaskStatuses.READY)
+
+    fun shouldCancelPendingInstance(
+        instance: TaskInstanceEntity,
+        state: TaskRuntimeStateEntity?,
+        hasSessions: Boolean,
+        today: LocalDate
+    ): Boolean {
+        if (instance.templateId == null) return false
+        if (instance.archived) return false
+        if (instance.status !in cancellableStatuses) return false
+        if (hasSessions) return false
+        if (!instance.resultNote.isNullOrBlank()) return false
+        if (state != null && state.status != TaskStatuses.READY) return false
+        if ((state?.accumulatedMillis ?: 0L) > 0L) return false
+        val localDate = runCatching { LocalDate.parse(instance.localDate) }.getOrNull() ?: return false
+        return !localDate.isBefore(today)
+    }
+}
+
 class RoomTimerRepository(
     private val database: TimerDatabase,
     private val clock: TimerClock,
@@ -331,6 +357,7 @@ class RoomTimerRepository(
 
     suspend fun createInstanceFromTemplate(templateId: String, localDate: LocalDate): String? {
         val template = templateDao.getById(templateId) ?: return null
+        if (template.archived) return null
         val existing = instanceDao.getByTemplateAndDate(templateId, localDate.toString())
         if (existing != null) return existing.id
         val categoryName = template.categoryId?.let { categoryDao.getById(it)?.name }
@@ -356,12 +383,61 @@ class RoomTimerRepository(
         return instance.id
     }
 
-    suspend fun archiveTemplate(templateId: String) {
+    suspend fun archiveTemplate(templateId: String): RoutineArchiveResult {
+        val cancelledInstanceIds = mutableListOf<String>()
         database.withTransaction {
+            val now = clock.nowEpochMillis()
+            val nowElapsed = clock.elapsedRealtimeMillis()
+            val today = Instant.ofEpochMilli(now).atZone(zoneId).toLocalDate()
             val template = templateDao.getById(templateId) ?: return@withTransaction
-            templateDao.upsert(template.copy(archived = true, updatedAtEpochMillis = clock.nowEpochMillis()))
-            insertEventLocked(templateId, templateId, TaskEventTypes.ARCHIVE, clock.nowEpochMillis(), clock.elapsedRealtimeMillis(), "{\"level\":\"template\"}")
+            if (!template.archived) {
+                templateDao.upsert(template.copy(archived = true, updatedAtEpochMillis = now))
+                insertEventLocked(templateId, templateId, TaskEventTypes.ARCHIVE, now, nowElapsed, "{\"level\":\"template\"}")
+            }
+            val sessionsByInstanceId = sessionDao.getByTemplate(templateId)
+                .mapTo(mutableSetOf()) { it.instanceId }
+            val statesByInstanceId = runtimeStateDao.getAll().associateBy { it.instanceId }
+            val cancellableInstances = instanceDao.getByTemplate(templateId).filter { instance ->
+                RoutineArchivePolicy.shouldCancelPendingInstance(
+                    instance = instance,
+                    state = statesByInstanceId[instance.id],
+                    hasSessions = instance.id in sessionsByInstanceId,
+                    today = today
+                )
+            }
+            cancellableInstances.forEach { instance ->
+                cancelledInstanceIds += instance.id
+                instanceDao.upsert(
+                    instance.copy(
+                        status = TaskStatuses.CANCELLED,
+                        updatedAtEpochMillis = now,
+                        cancelledAtEpochMillis = now,
+                        archived = true,
+                        archivedAtEpochMillis = now
+                    )
+                )
+                statesByInstanceId[instance.id]?.let { state ->
+                    runtimeStateDao.upsert(
+                        state.copy(
+                            status = TaskStatuses.CANCELLED,
+                            startedAtEpochMillis = null,
+                            startedAtElapsedRealtimeMillis = null,
+                            lastPersistedAtEpochMillis = now,
+                            version = state.version + 1
+                        )
+                    )
+                }
+                insertEventLocked(
+                    instance.id,
+                    templateId,
+                    TaskEventTypes.CANCEL,
+                    now,
+                    nowElapsed,
+                    "{\"source\":\"routine_archive\"}"
+                )
+            }
         }
+        return RoutineArchiveResult(templateId = templateId, cancelledInstanceIds = cancelledInstanceIds)
     }
 
     suspend fun updateResultNote(instanceId: String, note: String) {

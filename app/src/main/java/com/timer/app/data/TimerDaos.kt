@@ -77,6 +77,9 @@ interface TaskInstanceDao {
     @Query("SELECT * FROM task_instance WHERE templateId = :templateId AND localDate = :localDate LIMIT 1")
     suspend fun getByTemplateAndDate(templateId: String, localDate: String): TaskInstanceEntity?
 
+    @Query("SELECT * FROM task_instance WHERE templateId = :templateId ORDER BY localDate ASC, sortOrder DESC, createdAtEpochMillis DESC")
+    suspend fun getByTemplate(templateId: String): List<TaskInstanceEntity>
+
     @Query("SELECT * FROM task_instance WHERE localDate = :localDate AND archived = 0 ORDER BY sortOrder DESC, createdAtEpochMillis DESC")
     fun observeForDate(localDate: String): Flow<List<TaskInstanceEntity>>
 
@@ -156,6 +159,9 @@ interface TaskSessionDao {
 
     @Query("SELECT * FROM task_session ORDER BY startedAtEpochMillis DESC")
     suspend fun getAll(): List<TaskSessionEntity>
+
+    @Query("SELECT * FROM task_session WHERE templateId = :templateId ORDER BY startedAtEpochMillis DESC")
+    suspend fun getByTemplate(templateId: String): List<TaskSessionEntity>
 }
 
 @Dao
