@@ -29,6 +29,31 @@ CI workflow command:
 
 Per project instruction, local Android SDK/Gradle test/build commands are not run during implementation handoff. Static source/XML checks may be run locally; GitHub CI is the authoritative build/test gate.
 
+## GitHub release workflow
+
+This repository also includes an `Android Release` GitHub Actions workflow.
+
+Release triggers:
+
+- Push a tag such as `v0.1.0`
+- Or run the workflow manually with `workflow_dispatch`
+
+Release behavior:
+
+- Runs unit tests
+- Builds the release APK with `assembleRelease`
+- Uploads the APK as a workflow artifact
+- Publishes the APK to GitHub Releases
+
+Optional signing secrets used by the release workflow:
+
+- `ANDROID_RELEASE_KEYSTORE_BASE64`
+- `ANDROID_RELEASE_STORE_PASSWORD`
+- `ANDROID_RELEASE_KEY_ALIAS`
+- `ANDROID_RELEASE_KEY_PASSWORD`
+
+If the four signing secrets are present, the release build is signed with that keystore. If they are absent, the workflow still builds and publishes an unsigned release APK.
+
 ## Key architecture
 
 - `TaskTemplateEntity`: reusable optional task definitions.

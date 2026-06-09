@@ -1,0 +1,200 @@
+name: Android Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: "Release tag, for example v0.1.0"
+        required: true
+        type: string
+      release_title:
+        description: "Optional GitHub Release title. Defaults to the tag name."
+        required: false
+        default: ""
+        type: string
+      prerelease:
+        description: "Mark the GitHub Release as a prerelease"
+        required: false
+        default: false
+        type: boolean
+      generate_notes:
+        description: "Generate GitHub Release notes automatically"
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build release APK and publish GitHub Release
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Accept Android SDK licenses and install API 35
+        shell: bash
+        run: |
+          # GitHub's bash shell enables `-e -o pipefail`. `sdkmanager` can
+          # finish license acceptance successfully while `yes` receives SIGPIPE
+          # and exits non-zero. Ignore only `yes`; still fail if sdkmanager fails.
+          set +e
+          set +o pipefail
+          yes 2>/dev/null | sdkmanager --licenses >/dev/null
+          sdkmanager_license_status=${PIPESTATUS[1]}
+          set -o pipefail
+          set -e
+          if [ "$sdkmanager_license_status" -ne 0 ]; then
+            exit "$sdkmanager_license_status"
+          fi
+          sdkmanager "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Make wrapper executable
+        run: chmod +x ./gradlew
+
+      - name: Resolve release metadata
+        id: meta
+        shell: bash
+        run: |
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
+            tag="${{ inputs.tag_name }}"
+            title="${{ inputs.release_title }}"
+            prerelease="${{ inputs.prerelease }}"
+            generate_notes="${{ inputs.generate_notes }}"
+          else
+            tag="${GITHUB_REF_NAME}"
+            title=""
+            prerelease="false"
+            generate_notes="true"
+          fi
+
+          if [ -z "$tag" ]; then
+            echo "Release tag is required." >&2
+            exit 1
+          fi
+
+          if [ -z "$title" ]; then
+            title="$tag"
+          fi
+
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "title=$title" >> "$GITHUB_OUTPUT"
+          echo "prerelease=$prerelease" >> "$GITHUB_OUTPUT"
+          echo "generate_notes=$generate_notes" >> "$GITHUB_OUTPUT"
+
+      - name: Prepare optional release signing
+        id: signing
+        env:
+          ANDROID_RELEASE_KEYSTORE_BASE64: ${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 }}
+          ANDROID_RELEASE_STORE_PASSWORD: ${{ secrets.ANDROID_RELEASE_STORE_PASSWORD }}
+          ANDROID_RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_RELEASE_KEY_ALIAS }}
+          ANDROID_RELEASE_KEY_PASSWORD: ${{ secrets.ANDROID_RELEASE_KEY_PASSWORD }}
+        shell: bash
+        run: |
+          if [ -n "$ANDROID_RELEASE_KEYSTORE_BASE64" ] && \
+             [ -n "$ANDROID_RELEASE_STORE_PASSWORD" ] && \
+             [ -n "$ANDROID_RELEASE_KEY_ALIAS" ] && \
+             [ -n "$ANDROID_RELEASE_KEY_PASSWORD" ]; then
+            keystore_path="$RUNNER_TEMP/android-release.keystore"
+            echo "$ANDROID_RELEASE_KEYSTORE_BASE64" | base64 --decode > "$keystore_path"
+
+            echo "ANDROID_SIGNING_STORE_FILE=$keystore_path" >> "$GITHUB_ENV"
+            echo "ANDROID_SIGNING_STORE_PASSWORD=$ANDROID_RELEASE_STORE_PASSWORD" >> "$GITHUB_ENV"
+            echo "ANDROID_SIGNING_KEY_ALIAS=$ANDROID_RELEASE_KEY_ALIAS" >> "$GITHUB_ENV"
+            echo "ANDROID_SIGNING_KEY_PASSWORD=$ANDROID_RELEASE_KEY_PASSWORD" >> "$GITHUB_ENV"
+
+            echo "mode=signed" >> "$GITHUB_OUTPUT"
+          else
+            echo "mode=unsigned" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run unit tests and assemble release
+        run: ./gradlew testDebugUnitTest assembleRelease --stacktrace
+
+      - name: Collect release assets
+        id: collect
+        shell: bash
+        run: |
+          mkdir -p release-assets
+          find app/build/outputs/apk/release -maxdepth 1 -type f -name "*.apk" -exec cp {} release-assets/ \;
+
+          if ! compgen -G "release-assets/*.apk" > /dev/null; then
+            echo "No release APK was produced." >&2
+            exit 1
+          fi
+
+          ls -la release-assets
+          echo "asset_count=$(find release-assets -maxdepth 1 -type f | wc -l | tr -d ' ')" >> "$GITHUB_OUTPUT"
+
+      - name: Upload release workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: timer-release-${{ steps.meta.outputs.tag }}
+          path: release-assets/*
+
+      - name: Write workflow summary
+        shell: bash
+        run: |
+          {
+            echo "## Android Release"
+            echo
+            echo "- Tag: \`${{ steps.meta.outputs.tag }}\`"
+            echo "- Title: \`${{ steps.meta.outputs.title }}\`"
+            echo "- Signing mode: \`${{ steps.signing.outputs.mode }}\`"
+            echo "- Assets collected: \`${{ steps.collect.outputs.asset_count }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publish GitHub Release with gh CLI
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.meta.outputs.tag }}
+          RELEASE_TITLE: ${{ steps.meta.outputs.title }}
+          RELEASE_PRERELEASE: ${{ steps.meta.outputs.prerelease }}
+          RELEASE_GENERATE_NOTES: ${{ steps.meta.outputs.generate_notes }}
+        shell: bash
+        run: |
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "Release $RELEASE_TAG already exists. Uploading assets with --clobber."
+            gh release upload "$RELEASE_TAG" release-assets/* --clobber
+            exit 0
+          fi
+
+          args=(
+            "$RELEASE_TAG"
+            release-assets/*
+            --title "$RELEASE_TITLE"
+            --target "$GITHUB_SHA"
+          )
+
+          if [ "$RELEASE_PRERELEASE" = "true" ]; then
+            args+=(--prerelease)
+          fi
+
+          if [ "$RELEASE_GENERATE_NOTES" = "true" ]; then
+            args+=(--generate-notes)
+          else
+            args+=(--notes "Android release build for $RELEASE_TAG")
+          fi
+
+          gh release create "${args[@]}"

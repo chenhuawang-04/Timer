@@ -5,9 +5,36 @@ plugins {
     id("org.jetbrains.kotlin.kapt")
 }
 
+val releaseStoreFilePath = System.getenv("ANDROID_SIGNING_STORE_FILE")
+val releaseStorePassword = System.getenv("ANDROID_SIGNING_STORE_PASSWORD")
+val releaseKeyAlias = System.getenv("ANDROID_SIGNING_KEY_ALIAS")
+val releaseKeyPassword = System.getenv("ANDROID_SIGNING_KEY_PASSWORD")
+val releaseStoreFile = releaseStoreFilePath?.let { file(it) }
+val hasReleaseSigning =
+    releaseStoreFile != null &&
+    !releaseStorePassword.isNullOrBlank() &&
+    !releaseKeyAlias.isNullOrBlank() &&
+    !releaseKeyPassword.isNullOrBlank() &&
+        releaseStoreFile.exists()
+
 android {
     namespace = "com.timer.app"
     compileSdk = 35
+
+    if (hasReleaseSigning) {
+        val nonNullReleaseStoreFile = requireNotNull(releaseStoreFile)
+        val nonNullReleaseStorePassword = requireNotNull(releaseStorePassword)
+        val nonNullReleaseKeyAlias = requireNotNull(releaseKeyAlias)
+        val nonNullReleaseKeyPassword = requireNotNull(releaseKeyPassword)
+        signingConfigs {
+            create("release") {
+                storeFile = nonNullReleaseStoreFile
+                storePassword = nonNullReleaseStorePassword
+                keyAlias = nonNullReleaseKeyAlias
+                keyPassword = nonNullReleaseKeyPassword
+            }
+        }
+    }
 
     defaultConfig {
         applicationId = "com.timer.app"
@@ -21,6 +48,9 @@ android {
 
     buildTypes {
         release {
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
