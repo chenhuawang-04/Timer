@@ -212,7 +212,7 @@ class RoomTimerRepository(
         return goal.id
     }
 
-    suspend fun preparePlanningWindow(anchorDate: LocalDate, pastDays: Long = 14L, futureDays: Long = 45L) {
+    suspend fun preparePlanningWindow(anchorDate: LocalDate, pastDays: Long = 14L, futureDays: Long = 7L) {
         ensureSeedData()
         val start = anchorDate.minusDays(pastDays)
         val end = anchorDate.plusDays(futureDays)
@@ -229,7 +229,7 @@ class RoomTimerRepository(
         val nowElapsed = clock.elapsedRealtimeMillis()
 
         activeTemplates.forEach { template ->
-            val generationEnd = minOf(end, nowDate.plusDays(template.autoGenerateAheadDays.coerceAtLeast(7).toLong()))
+            val generationEnd = minOf(end, nowDate.plusDays(template.autoGenerateAheadDays.coerceIn(0, 7).toLong()))
             var cursor = maxOf(start, LocalDate.parse(template.anchorDate))
             while (!cursor.isAfter(generationEnd)) {
                 val key = template.id to cursor.toString()
@@ -317,7 +317,7 @@ class RoomTimerRepository(
             pomodoroWorkMinutes = sanitizePomodoroMinutes(draft.pomodoroWorkMinutes),
             pomodoroBreakMinutes = sanitizePomodoroBreakMinutes(draft.pomodoroBreakMinutes),
             pomodoroCycles = sanitizePomodoroCycles(draft.pomodoroCycles),
-            autoGenerateAheadDays = 45,
+            autoGenerateAheadDays = 7,
             archived = false,
             createdAtEpochMillis = now,
             updatedAtEpochMillis = now

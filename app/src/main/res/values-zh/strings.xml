@@ -134,6 +134,8 @@
     <string name="empty_calendar_day">这一天没有任务</string>
     <string name="empty_calendar_day_body">你可以新增任务，或从例行模板生成。</string>
     <string name="empty_breakdown">还没有可统计的数据。</string>
+    <string name="empty_history">还没有已完成的记录</string>
+    <string name="empty_history_body">这里会隐藏未来自动生成的例行计划。完成、错过、取消、已计时或写过备注的任务会显示在这里。</string>
 
     <string name="status_planned">未开始</string>
     <string name="status_ready">就绪</string>

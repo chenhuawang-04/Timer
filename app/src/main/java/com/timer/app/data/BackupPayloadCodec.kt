@@ -323,7 +323,7 @@ object BackupPayloadCodec {
                     pomodoroWorkMinutes = item.optNullableInt("pomodoroWorkMinutes"),
                     pomodoroBreakMinutes = item.optNullableInt("pomodoroBreakMinutes"),
                     pomodoroCycles = item.optNullableInt("pomodoroCycles"),
-                    autoGenerateAheadDays = item.optInt("autoGenerateAheadDays", 45),
+                    autoGenerateAheadDays = item.optInt("autoGenerateAheadDays", 7),
                     archived = item.optBoolean("archived", false),
                     createdAtEpochMillis = item.optLong("createdAtEpochMillis", 0L),
                     updatedAtEpochMillis = item.optLong("updatedAtEpochMillis", 0L)

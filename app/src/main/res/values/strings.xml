@@ -134,6 +134,8 @@
     <string name="empty_calendar_day">No tasks on this day</string>
     <string name="empty_calendar_day_body">Use the plus button to add one or generate from a routine.</string>
     <string name="empty_breakdown">No tracked data yet.</string>
+    <string name="empty_history">No finished records yet</string>
+    <string name="empty_history_body">Future routine plans are hidden here. Completed, missed, cancelled, timed, or noted tasks will appear after you work on them.</string>
 
     <string name="status_planned">Planned</string>
     <string name="status_ready">Ready</string>

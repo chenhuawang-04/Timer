@@ -24,6 +24,7 @@ import com.timer.app.data.SessionModes
 import com.timer.app.data.TaskCategoryEntity
 import com.timer.app.data.TaskDraft
 import com.timer.app.data.TaskEventLogEntity
+import com.timer.app.data.TaskEventTypes
 import com.timer.app.data.TaskInstanceEntity
 import com.timer.app.data.TaskPriorities
 import com.timer.app.data.TaskRuntimeStateEntity
@@ -583,10 +584,17 @@ class TimerViewModel(
 
         val month = YearMonth.from(controlState.date)
         val calendarDays = buildCalendarDays(month, controlState.date, snapshot.instances, snapshot.sessions, snapshot.states)
+        val today = Instant.ofEpochMilli(nowEpoch).atZone(ZoneId.systemDefault()).toLocalDate()
 
         val history = snapshot.instances
+            .filter { instance ->
+                instance.isMeaningfulHistoryEntry(
+                    referenceDate = today,
+                    trackedMillis = trackedByInstance[instance.id] ?: 0L
+                )
+            }
             .sortedByDescending { it.updatedAtEpochMillis }
-            .take(60)
+            .take(30)
             .map { instance ->
                 HistoryUiModel(
                     instanceId = instance.id,
@@ -603,6 +611,7 @@ class TimerViewModel(
         val instanceNames = snapshot.instances.associateBy({ it.id }, { it.nameSnapshot }) +
             snapshot.templates.associateBy({ it.id }, { it.name })
         val audits = snapshot.events
+            .filter { it.eventType != TaskEventTypes.GENERATE_INSTANCE }
             .sortedByDescending { it.atEpochMillis }
             .take(80)
             .map { event ->
@@ -645,6 +654,22 @@ class TimerViewModel(
             statusMessage = controlState.statusMessage,
             isLoading = false
         )
+    }
+
+    private fun TaskInstanceEntity.isMeaningfulHistoryEntry(
+        referenceDate: LocalDate,
+        trackedMillis: Long
+    ): Boolean {
+        if (archived) return false
+        val date = runCatching { LocalDate.parse(localDate) }.getOrNull() ?: return false
+        if (date.isAfter(referenceDate)) return false
+        val hasOutcome = status in setOf(
+            TaskStatuses.COMPLETED,
+            TaskStatuses.MISSED,
+            TaskStatuses.CANCELLED
+        )
+        val hasUserSignal = trackedMillis > 0L || !resultNote.isNullOrBlank()
+        return hasOutcome || hasUserSignal
     }
 
     private fun buildCalendarDays(

@@ -2,6 +2,7 @@
 
 package com.timer.app.ui
 
+import androidx.annotation.DrawableRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -32,6 +33,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -53,6 +55,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -189,7 +192,12 @@ fun TimerDashboardScreen(
                     NavigationBarItem(
                         selected = uiState.activeTab == tab,
                         onClick = { onSelectTab(tab) },
-                        icon = { Text(tabLabel(tab).first().toString()) },
+                        icon = {
+                            Icon(
+                                painter = painterResource(tabIconRes(tab)),
+                                contentDescription = null
+                            )
+                        },
                         label = { Text(tabLabel(tab)) }
                     )
                 }
@@ -373,6 +381,15 @@ private fun tabLabel(tab: AppTab): String = when (tab) {
     AppTab.SETTINGS -> stringResource(R.string.tab_settings)
 }
 
+@DrawableRes
+private fun tabIconRes(tab: AppTab): Int = when (tab) {
+    AppTab.TODAY -> R.drawable.ic_tab_today
+    AppTab.ROUTINES -> R.drawable.ic_tab_routines
+    AppTab.CALENDAR -> R.drawable.ic_tab_calendar
+    AppTab.INSIGHTS -> R.drawable.ic_tab_insights
+    AppTab.SETTINGS -> R.drawable.ic_tab_settings
+}
+
 @Composable
 private fun BannerMessage(message: String, onDismiss: () -> Unit) {
     Card(
@@ -554,6 +571,7 @@ private fun MetricPill(label: String, value: String) {
 @Composable
 private fun NotificationWarningCard(title: String, body: String, action: String?) {
     Card(
+        modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
         shape = RoundedCornerShape(22.dp)
     ) {
@@ -567,7 +585,10 @@ private fun NotificationWarningCard(title: String, body: String, action: String?
 
 @Composable
 private fun SuggestionCard(model: SuggestionUiModel) {
-    Card(shape = RoundedCornerShape(22.dp)) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(22.dp)
+    ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(model.title, fontWeight = FontWeight.Bold)
             Text(model.body, style = MaterialTheme.typography.bodyMedium)
@@ -587,6 +608,7 @@ private fun TaskCard(
     onArchive: (String) -> Unit
 ) {
     Card(
+        modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest)
     ) {
@@ -769,7 +791,10 @@ private fun ActionRailCard(
     onPrimary: () -> Unit,
     onSecondary: () -> Unit
 ) {
-    Card(shape = RoundedCornerShape(24.dp)) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp)
+    ) {
         Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             Text(body, style = MaterialTheme.typography.bodyMedium)
@@ -787,7 +812,10 @@ private fun RoutineCard(
     onCreateTodayFromRoutine: (String) -> Unit,
     onArchiveRoutine: (String) -> Unit
 ) {
-    Card(shape = RoundedCornerShape(22.dp)) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(22.dp)
+    ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(model.template.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Text(listOfNotNull(model.categoryName, model.scheduleText).joinToString(" · "), style = MaterialTheme.typography.bodySmall)
@@ -923,10 +951,25 @@ private fun InsightsScreen(
             )
         }
         item {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                StatBox(stringResource(R.string.metric_completion), "${(uiState.stats.completionRateToday * 100).toInt()}%")
-                StatBox(stringResource(R.string.metric_avg_session), DurationFormatter.compact(uiState.stats.averageSessionMillis))
-                StatBox(stringResource(R.string.metric_focus_sessions), "${uiState.stats.focusSessionsTodayCount}")
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                StatBox(
+                    label = stringResource(R.string.metric_completion),
+                    value = "${(uiState.stats.completionRateToday * 100).toInt()}%",
+                    modifier = Modifier.weight(1f)
+                )
+                StatBox(
+                    label = stringResource(R.string.metric_avg_session),
+                    value = DurationFormatter.compact(uiState.stats.averageSessionMillis),
+                    modifier = Modifier.weight(1f)
+                )
+                StatBox(
+                    label = stringResource(R.string.metric_focus_sessions),
+                    value = "${uiState.stats.focusSessionsTodayCount}",
+                    modifier = Modifier.weight(1f)
+                )
             }
         }
         item {
@@ -947,24 +990,33 @@ private fun InsightsScreen(
                 subtitle = stringResource(R.string.section_history_subtitle)
             )
         }
-        items(uiState.history, key = { it.instanceId }) { history ->
-            HistoryCard(history, onEditResultNote)
+        if (uiState.history.isEmpty()) {
+            item { EmptyInsightCard() }
+        } else {
+            items(uiState.history, key = { it.instanceId }) { history ->
+                HistoryCard(history, onEditResultNote)
+            }
         }
-        item {
-            SectionHeader(
-                title = stringResource(R.string.section_audit),
-                subtitle = stringResource(R.string.section_audit_subtitle)
-            )
-        }
-        items(uiState.audits, key = { it.id }) { audit ->
-            AuditCard(audit)
+        if (uiState.audits.isNotEmpty()) {
+            item {
+                SectionHeader(
+                    title = stringResource(R.string.section_audit),
+                    subtitle = stringResource(R.string.section_audit_subtitle)
+                )
+            }
+            items(uiState.audits, key = { it.id }) { audit ->
+                AuditCard(audit)
+            }
         }
     }
 }
 
 @Composable
-private fun StatBox(label: String, value: String) {
-    Card(modifier = Modifier.width(120.dp), shape = RoundedCornerShape(20.dp)) {
+private fun StatBox(label: String, value: String, modifier: Modifier = Modifier) {
+    Card(
+        modifier = modifier,
+        shape = RoundedCornerShape(20.dp)
+    ) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(value, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             Text(label, style = MaterialTheme.typography.bodySmall)
@@ -974,7 +1026,10 @@ private fun StatBox(label: String, value: String) {
 
 @Composable
 private fun BreakdownSection(title: String, items: List<com.timer.app.domain.BreakdownStat>) {
-    Card(shape = RoundedCornerShape(24.dp)) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp)
+    ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             if (items.isEmpty()) {
@@ -999,7 +1054,10 @@ private fun BreakdownSection(title: String, items: List<com.timer.app.domain.Bre
 
 @Composable
 private fun ProgressInfoCard(title: String, body: String, progress: Float) {
-    Card(shape = RoundedCornerShape(18.dp)) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp)
+    ) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(title, fontWeight = FontWeight.Bold)
             Text(body, style = MaterialTheme.typography.bodySmall)
@@ -1010,7 +1068,10 @@ private fun ProgressInfoCard(title: String, body: String, progress: Float) {
 
 @Composable
 private fun HistoryCard(model: HistoryUiModel, onEditResultNote: (HistoryUiModel) -> Unit) {
-    Card(shape = RoundedCornerShape(22.dp)) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(22.dp)
+    ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(model.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Text(listOf(model.localDate, model.statusText, model.trackedText).joinToString(" · "), style = MaterialTheme.typography.bodySmall)
@@ -1028,8 +1089,24 @@ private fun HistoryCard(model: HistoryUiModel, onEditResultNote: (HistoryUiModel
 }
 
 @Composable
+private fun EmptyInsightCard() {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(22.dp)
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(stringResource(R.string.empty_history), fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.empty_history_body), style = MaterialTheme.typography.bodySmall)
+        }
+    }
+}
+
+@Composable
 private fun AuditCard(model: AuditUiModel) {
-    Card(shape = RoundedCornerShape(20.dp)) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp)
+    ) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(model.title, fontWeight = FontWeight.Bold)
             Text(model.detail, style = MaterialTheme.typography.bodySmall)
