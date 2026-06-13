@@ -240,6 +240,8 @@ data class TaskRuntimeStateEntity(
     val startedAtEpochMillis: Long?,
     val startedAtElapsedRealtimeMillis: Long?,
     val lastPersistedAtEpochMillis: Long,
+    val lastBreakReminderAtEpochMillis: Long?,
+    val breakUntilEpochMillis: Long?,
     val version: Long
 ) {
     companion object {
@@ -251,6 +253,8 @@ data class TaskRuntimeStateEntity(
                 startedAtEpochMillis = null,
                 startedAtElapsedRealtimeMillis = null,
                 lastPersistedAtEpochMillis = nowEpochMillis,
+                lastBreakReminderAtEpochMillis = null,
+                breakUntilEpochMillis = null,
                 version = 0L
             )
     }

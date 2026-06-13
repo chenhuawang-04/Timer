@@ -247,6 +247,26 @@
     <string name="setting_keep_screen_on">Keep screen on in focus mode</string>
     <string name="setting_energy_mode">Energy mode</string>
     <string name="setting_notifications">Notifications enabled</string>
+    <string name="setting_break_reminder">Break reminder</string>
+    <string name="setting_break_interval">Break interval (minutes)</string>
+    <string name="setting_break_duration">Break duration (minutes)</string>
+    <string name="setting_auto_recovery">Auto recovery on restart</string>
+
+    <string name="break_reminder_title">Time for a break</string>
+    <string name="break_reminder_message">You\'ve been working for %1$d minutes. Take a break?</string>
+    <string name="break_reminder_continue">Continue</string>
+    <string name="break_reminder_stop">Stop</string>
+    <string name="break_reminder_take_break">Break %1$d min</string>
+    <string name="break_status_in_break">In break, resume at %1$s</string>
+
+    <string name="recovery_dialog_title">Interrupted task detected</string>
+    <string name="recovery_dialog_message">%1$s was running when the app closed.\n\nRecorded: %2$s\nEstimated actual: %3$s\nDifference: %4$s</string>
+    <string name="recovery_option_actual">Use actual time</string>
+    <string name="recovery_option_recorded">Keep recorded</string>
+    <string name="recovery_option_custom">Enter custom</string>
+    <string name="recovery_custom_title">Enter custom time</string>
+    <string name="recovery_custom_hint">Minutes</string>
+    <string name="recovery_apply">Apply</string>
 
     <string name="cloud_sync_description">Set up a daily repository snapshot on Gitee or GitHub. Snapshots are gzipped, chunked, and uploaded as small files to stay within common contents API size limits.</string>
     <string name="cloud_sync_provider_label">Sync provider</string>

@@ -232,6 +232,8 @@ object BackupPayloadCodec {
         .putNullable("startedAtEpochMillis", entity.startedAtEpochMillis)
         .putNullable("startedAtElapsedRealtimeMillis", entity.startedAtElapsedRealtimeMillis)
         .put("lastPersistedAtEpochMillis", entity.lastPersistedAtEpochMillis)
+        .putNullable("lastBreakReminderAtEpochMillis", entity.lastBreakReminderAtEpochMillis)
+        .putNullable("breakUntilEpochMillis", entity.breakUntilEpochMillis)
         .put("version", entity.version)
 
     private fun encodeSession(entity: TaskSessionEntity) = JSONObject()
@@ -392,6 +394,8 @@ object BackupPayloadCodec {
                     startedAtEpochMillis = item.optNullableLong("startedAtEpochMillis"),
                     startedAtElapsedRealtimeMillis = item.optNullableLong("startedAtElapsedRealtimeMillis"),
                     lastPersistedAtEpochMillis = item.optLong("lastPersistedAtEpochMillis", 0L),
+                    lastBreakReminderAtEpochMillis = item.optNullableLong("lastBreakReminderAtEpochMillis"),
+                    breakUntilEpochMillis = item.optNullableLong("breakUntilEpochMillis"),
                     version = item.optLong("version", 0L)
                 )
             )

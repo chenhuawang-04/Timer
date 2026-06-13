@@ -13,7 +13,7 @@ import androidx.room.RoomDatabase
         TaskSessionEntity::class,
         TaskEventLogEntity::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = true
 )
 abstract class TimerDatabase : RoomDatabase() {

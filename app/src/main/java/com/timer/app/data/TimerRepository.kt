@@ -529,10 +529,61 @@ class RoomTimerRepository(
                         startedAtEpochMillis = null,
                         startedAtElapsedRealtimeMillis = null,
                         lastPersistedAtEpochMillis = now,
+                        lastBreakReminderAtEpochMillis = state.lastBreakReminderAtEpochMillis,
+                        breakUntilEpochMillis = state.breakUntilEpochMillis,
                         version = state.version + 1
                     )
                 )
                 insertEventLocked(instanceId, instance.templateId, TaskEventTypes.PAUSE, now, nowElapsed, null)
+            }
+        }
+    }
+
+    suspend fun autoPauseWithCleanup(instanceId: String) {
+        database.withTransaction {
+            val now = clock.nowEpochMillis()
+            val nowElapsed = clock.elapsedRealtimeMillis()
+            val instance = instanceDao.getById(instanceId) ?: return@withTransaction
+            val state = runtimeStateDao.getByInstanceId(instanceId) ?: return@withTransaction
+
+            // Only proceed if task is actually running and has a break reminder
+            if (instance.archived || state.status != TaskStatuses.RUNNING ||
+                instance.status != TaskStatuses.RUNNING ||
+                state.lastBreakReminderAtEpochMillis == null) {
+                return@withTransaction
+            }
+
+            val segment = TimerMath.clampCountdownSegment(instance, state, TimerMath.currentOpenSegmentMillis(state, nowElapsed))
+            val newAccumulated = state.accumulatedMillis + segment
+            val completed = instance.type == TaskTypes.COUNT_DOWN && (resolvedCountdownTarget(instance)?.let { newAccumulated >= it } == true)
+
+            insertSessionForOpenSegmentLocked(
+                instance = instance,
+                state = state,
+                nowEpochMillis = now,
+                durationMillis = segment,
+                source = if (completed) SessionSources.COUNTDOWN_AUTO else SessionSources.MANUAL
+            )
+
+            if (completed) {
+                markInstanceCompletedLocked(instance, CompletionSources.COUNTDOWN_AUTO, now, nowElapsed)
+                runtimeStateDao.upsert(state.completedCopy(resolvedCountdownTarget(instance) ?: newAccumulated, now))
+            } else {
+                instanceDao.upsert(instance.copy(status = TaskStatuses.PAUSED, updatedAtEpochMillis = now))
+                // Atomically pause and clear break reminder state
+                runtimeStateDao.upsert(
+                    state.copy(
+                        status = TaskStatuses.PAUSED,
+                        accumulatedMillis = newAccumulated,
+                        startedAtEpochMillis = null,
+                        startedAtElapsedRealtimeMillis = null,
+                        lastPersistedAtEpochMillis = now,
+                        lastBreakReminderAtEpochMillis = null,
+                        breakUntilEpochMillis = state.breakUntilEpochMillis,
+                        version = state.version + 1
+                    )
+                )
+                insertEventLocked(instanceId, instance.templateId, TaskEventTypes.PAUSE, now, nowElapsed, "{\"source\":\"auto_pause\"}")
             }
         }
     }
@@ -552,6 +603,8 @@ class RoomTimerRepository(
                     startedAtEpochMillis = now,
                     startedAtElapsedRealtimeMillis = nowElapsed,
                     lastPersistedAtEpochMillis = now,
+                    lastBreakReminderAtEpochMillis = null,
+                    breakUntilEpochMillis = null,
                     version = state.version + 1
                 )
             )
@@ -606,6 +659,8 @@ class RoomTimerRepository(
                         startedAtEpochMillis = null,
                         startedAtElapsedRealtimeMillis = null,
                         lastPersistedAtEpochMillis = now,
+                        lastBreakReminderAtEpochMillis = null,
+                        breakUntilEpochMillis = null,
                         version = state.version + 1
                     )
                 )
@@ -694,6 +749,8 @@ class RoomTimerRepository(
                             startedAtEpochMillis = now,
                             startedAtElapsedRealtimeMillis = nowElapsed,
                             lastPersistedAtEpochMillis = now,
+                            lastBreakReminderAtEpochMillis = null,
+                            breakUntilEpochMillis = null,
                             version = state.version + 1
                         )
                     )
@@ -717,6 +774,8 @@ class RoomTimerRepository(
                                 startedAtEpochMillis = now,
                                 startedAtElapsedRealtimeMillis = nowElapsed,
                                 lastPersistedAtEpochMillis = now,
+                                lastBreakReminderAtEpochMillis = null,
+                                breakUntilEpochMillis = null,
                                 version = state.version + 1
                             )
                         )
@@ -730,6 +789,8 @@ class RoomTimerRepository(
                             startedAtEpochMillis = now,
                             startedAtElapsedRealtimeMillis = nowElapsed,
                             lastPersistedAtEpochMillis = now,
+                            lastBreakReminderAtEpochMillis = null,
+                            breakUntilEpochMillis = null,
                             version = state.version + 1
                         )
                     )
@@ -1109,6 +1170,98 @@ class RoomTimerRepository(
         startedAtEpochMillis = null,
         startedAtElapsedRealtimeMillis = null,
         lastPersistedAtEpochMillis = now,
+        lastBreakReminderAtEpochMillis = null,
+        breakUntilEpochMillis = null,
         version = version + 1
     )
+
+    suspend fun updateBreakReminderTimestamp(instanceId: String, timestamp: Long) {
+        val state = runtimeStateDao.getByInstanceId(instanceId)
+        if (state == null) {
+            // Log warning but don't crash - this can happen during race conditions
+            android.util.Log.w("RoomTimerRepository", "Cannot update break reminder timestamp: runtime state not found for instance $instanceId")
+            return
+        }
+        runtimeStateDao.upsert(
+            state.copy(
+                lastBreakReminderAtEpochMillis = timestamp,
+                version = state.version + 1
+            )
+        )
+    }
+
+    suspend fun clearBreakReminderState(instanceId: String) {
+        val state = runtimeStateDao.getByInstanceId(instanceId)
+        if (state == null) {
+            android.util.Log.w("RoomTimerRepository", "Cannot clear break reminder state: runtime state not found for instance $instanceId")
+            return
+        }
+        runtimeStateDao.upsert(
+            state.copy(
+                lastBreakReminderAtEpochMillis = null,
+                version = state.version + 1
+            )
+        )
+    }
+
+    suspend fun updateBreakUntil(instanceId: String, breakUntilEpochMillis: Long) {
+        val state = runtimeStateDao.getByInstanceId(instanceId)
+        if (state == null) {
+            android.util.Log.w("RoomTimerRepository", "Cannot update break until: runtime state not found for instance $instanceId")
+            return
+        }
+        runtimeStateDao.upsert(
+            state.copy(
+                breakUntilEpochMillis = breakUntilEpochMillis,
+                version = state.version + 1
+            )
+        )
+    }
+
+    suspend fun updateAccumulatedTime(instanceId: String, newAccumulatedMillis: Long) {
+        val state = runtimeStateDao.getByInstanceId(instanceId)
+        if (state == null) {
+            android.util.Log.w("RoomTimerRepository", "Cannot update accumulated time: runtime state not found for instance $instanceId")
+            return
+        }
+        runtimeStateDao.upsert(
+            state.copy(
+                accumulatedMillis = newAccumulatedMillis,
+                version = state.version + 1
+            )
+        )
+    }
+
+    suspend fun applyRecoveryAdjustment(instanceId: String, newAccumulatedMillis: Long) {
+        database.withTransaction {
+            val now = clock.nowEpochMillis()
+            val instance = instanceDao.getById(instanceId)
+            if (instance == null) {
+                android.util.Log.w("RoomTimerRepository", "Cannot apply recovery: instance not found $instanceId")
+                return@withTransaction
+            }
+
+            // Update instance timestamp to reflect the recovery adjustment
+            instanceDao.upsert(
+                instance.copy(updatedAtEpochMillis = now)
+            )
+
+            // Update accumulated time in runtime state
+            val state = runtimeStateDao.getByInstanceId(instanceId)
+            if (state == null) {
+                android.util.Log.w("RoomTimerRepository", "Cannot apply recovery: runtime state not found for instance $instanceId")
+                return@withTransaction
+            }
+
+            runtimeStateDao.upsert(
+                state.copy(
+                    accumulatedMillis = newAccumulatedMillis,
+                    lastPersistedAtEpochMillis = now,
+                    version = state.version + 1
+                )
+            )
+
+            insertEventLocked(instanceId, instance.templateId, TaskEventTypes.RECOVER, now, clock.elapsedRealtimeMillis(), "{\"adjusted\":$newAccumulatedMillis}")
+        }
+    }
 }

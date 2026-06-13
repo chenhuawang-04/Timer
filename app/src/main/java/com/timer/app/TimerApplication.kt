@@ -3,6 +3,8 @@ package com.timer.app
 import android.app.Application
 import android.content.Context
 import androidx.room.Room
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.timer.app.R
 import com.timer.app.data.AppPreferencesRepository
 import com.timer.app.data.RoomTimerRepository
@@ -19,6 +21,9 @@ import com.timer.app.widget.TimerWidgetUpdater
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class TimerApplication : Application() {
@@ -26,12 +31,25 @@ class TimerApplication : Application() {
     lateinit var container: AppContainer
         private set
 
+    private val _pendingRecoveryEvent = MutableStateFlow<RecoveryEvent?>(null)
+    val pendingRecoveryEvent: StateFlow<RecoveryEvent?> = _pendingRecoveryEvent.asStateFlow()
+
+    fun clearPendingRecoveryEvent() {
+        _pendingRecoveryEvent.value = null
+    }
+
     override fun onCreate() {
         super.onCreate()
         container = AppContainer(this, applicationScope)
         container.notificationController.ensureNotificationChannels()
         applicationScope.launch {
             try {
+                // Check for interrupted tasks first
+                val recoveryEvent = container.interruptionCoordinator.detectInterruptedTasks()
+                if (recoveryEvent.interruptedTasks.isNotEmpty()) {
+                    // Store recovery event for UI to handle
+                    _pendingRecoveryEvent.value = recoveryEvent
+                }
                 container.automationCoordinator.warmUp()
             } finally {
                 container.cloudSyncCoordinator.refreshScheduleFromStoredPreferences()
@@ -47,11 +65,32 @@ class AppContainer(
 ) {
     private val appContext = context.applicationContext
 
+    private val MIGRATION_4_5 = object : Migration(4, 5) {
+        override fun migrate(database: SupportSQLiteDatabase) {
+            try {
+                // Add new columns for break reminder functionality with explicit NULL default
+                database.execSQL(
+                    "ALTER TABLE task_runtime_state ADD COLUMN lastBreakReminderAtEpochMillis INTEGER DEFAULT NULL"
+                )
+                database.execSQL(
+                    "ALTER TABLE task_runtime_state ADD COLUMN breakUntilEpochMillis INTEGER DEFAULT NULL"
+                )
+                android.util.Log.i("TimerDatabase", "Migration 4->5 completed successfully")
+            } catch (e: Exception) {
+                android.util.Log.e("TimerDatabase", "Migration 4->5 failed", e)
+                throw e
+            }
+        }
+    }
+
     val database: TimerDatabase = Room.databaseBuilder(
         appContext,
         TimerDatabase::class.java,
         "timer.db"
-    ).fallbackToDestructiveMigration().build()
+    )
+        .addMigrations(MIGRATION_4_5)
+        .fallbackToDestructiveMigrationOnDowngrade()  // Allow downgrade but not upgrade failure
+        .build()
 
     val preferencesRepository: AppPreferencesRepository = AppPreferencesRepository(appContext)
 
@@ -59,9 +98,12 @@ class AppContainer(
 
     val deadlineAlarmScheduler: DeadlineAlarmScheduler = DeadlineAlarmScheduler(appContext)
 
+    // Shared clock instance to avoid drift between components
+    private val sharedClock = AndroidTimerClock()
+
     val repository: RoomTimerRepository = RoomTimerRepository(
         database = database,
-        clock = AndroidTimerClock(),
+        clock = sharedClock,
         idProvider = UuidIdProvider(),
         untitledTaskName = appContext.getString(R.string.task_name_untitled),
         defaultCategories = listOf(
@@ -96,6 +138,13 @@ class AppContainer(
         notifications = notificationController,
         alarmScheduler = deadlineAlarmScheduler,
         widgetUpdater = widgetUpdater
+    )
+
+    val interruptionCoordinator: TimerInterruptionCoordinator = TimerInterruptionCoordinator(
+        context = appContext,
+        repository = repository,
+        preferencesRepository = preferencesRepository,
+        clock = sharedClock  // Use same clock instance
     )
 }
 

@@ -247,6 +247,26 @@
     <string name="setting_keep_screen_on">专注模式保持亮屏</string>
     <string name="setting_energy_mode">耗电模式</string>
     <string name="setting_notifications">通知权限已开启</string>
+    <string name="setting_break_reminder">休息提醒</string>
+    <string name="setting_break_interval">休息间隔（分钟）</string>
+    <string name="setting_break_duration">休息时长（分钟）</string>
+    <string name="setting_auto_recovery">重启时自动恢复</string>
+
+    <string name="break_reminder_title">该休息一下了</string>
+    <string name="break_reminder_message">您已工作了 %1$d 分钟，要休息一下吗？</string>
+    <string name="break_reminder_continue">继续</string>
+    <string name="break_reminder_stop">终止</string>
+    <string name="break_reminder_take_break">休息 %1$d 分钟</string>
+    <string name="break_status_in_break">休息中，将于 %1$s 恢复</string>
+
+    <string name="recovery_dialog_title">检测到中断的任务</string>
+    <string name="recovery_dialog_message">%1$s 在应用关闭时正在运行。\n\n已记录：%2$s\n预计实际：%3$s\n差值：%4$s</string>
+    <string name="recovery_option_actual">使用实际时间</string>
+    <string name="recovery_option_recorded">保持已记录</string>
+    <string name="recovery_option_custom">输入自定义</string>
+    <string name="recovery_custom_title">输入自定义时间</string>
+    <string name="recovery_custom_hint">分钟</string>
+    <string name="recovery_apply">应用</string>
 
     <string name="cloud_sync_description">可将数据每天自动同步到 Gitee 或 GitHub 仓库。快照会先经 Gzip 压缩，再拆分为小文件上传，以避免单文件过大。</string>
     <string name="cloud_sync_provider_label">同步平台</string>

@@ -81,6 +81,20 @@ class TimerForegroundService : Service() {
         monitorJob = serviceScope.launch {
             var widgetThrottle = 0
             while (isActive) {
+                // Check for auto-pause due to unanswered break reminders
+                // Use atomic operation to prevent race conditions
+                val toPause = app.container.interruptionCoordinator.checkAutoPause()
+                toPause.forEach { instanceId ->
+                    repository.autoPauseWithCleanup(instanceId)
+                }
+
+                // Check for break reminders
+                val breakReminders = app.container.interruptionCoordinator.checkBreakReminders()
+                breakReminders.forEach { reminder ->
+                    notifications.showBreakReminder(reminder.instanceId, reminder.taskName, reminder.elapsedMinutes)
+                    app.container.interruptionCoordinator.markBreakReminderShown(reminder.instanceId)
+                }
+
                 val result = repository.reconcileDeadlines()
                 result.completedCountdowns.forEach { notifications.showCountdownCompleted(it) }
                 result.missedTimeWindows.forEach { notifications.showTimeWindowMissed(it) }

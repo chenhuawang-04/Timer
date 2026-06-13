@@ -1,0 +1,62 @@
+[
+  {
+    "file": "app/src/main/java/com/timer/app/data/BackupPayloadCodec.kt",
+    "line": 228,
+    "summary": "BackupPayloadCodec doesn't serialize lastBreakReminderAtEpochMillis and breakUntilEpochMillis fields",
+    "failure_scenario": "User exports backup after using break reminders → imports backup on another device or after reinstall → all break reminder timestamps and break-until data is lost. Tasks on break lose their state, causing immediate duplicate break reminders or failure to auto-resume. Silent data corruption in backup/restore flow."
+  },
+  {
+    "file": "app/src/main/java/com/timer/app/TimerApplication.kt",
+    "line": 38,
+    "summary": "RecoveryEvent is computed but immediately discarded, never passed to UI",
+    "failure_scenario": "User's task is interrupted (app crashes during timer) → app restarts → detectInterruptedTasks() runs and finds interrupted tasks → result stored in local variable then thrown away → MainActivity never receives event → recovery dialog never shows → user loses interrupted work time silently. Entire recovery feature is non-functional."
+  },
+  {
+    "file": "app/src/main/java/com/timer/app/TimerApplication.kt",
+    "line": 84,
+    "summary": "Two separate AndroidTimerClock() instances created for repository and interruptionCoordinator",
+    "failure_scenario": "Break reminder check in interruptionCoordinator reads clock at T=1000ms, repository persists at T=1001ms → timestamps computed with different elapsed-realtime baselines → break reminder math calculates incorrect elapsed time using mismatched clocks → break reminder fires 1+ minutes early/late, or auto-pause triggers at wrong time. Clock drift accumulates over long sessions."
+  },
+  {
+    "file": "app/src/main/java/com/timer/app/service/TimerForegroundService.kt",
+    "line": 89,
+    "summary": "Auto-pause clears break reminder timestamp to 0L instead of null",
+    "failure_scenario": "Task auto-paused after 10-minute timeout → updateBreakReminderTimestamp(instanceId, 0L) sets timestamp to epoch zero (1970-01-01) instead of null → user resumes task → shouldShowBreakReminder checks (nowEpochMillis - 0) >= intervalMillis → condition always true since now is ~1.7B milliseconds → immediate break reminder on next poll cycle (1-5 seconds). User spammed with break reminders."
+  },
+  {
+    "file": "app/src/main/java/com/timer/app/data/TimerRepository.kt",
+    "line": 608,
+    "summary": "cancelInstance doesn't preserve lastBreakReminderAtEpochMillis and breakUntilEpochMillis in state.copy()",
+    "failure_scenario": "User cancels a task that has active break state → state.copy() at line 608-614 doesn't specify break fields → they default to null → inconsistent with pauseInstance which preserves them. If any code checks break state on cancelled tasks (analytics, cleanup), it sees null instead of actual values. Creates data inconsistency between pause and cancel operations."
+  },
+  {
+    "file": "app/src/main/java/com/timer/app/TimerApplication.kt",
+    "line": 62,
+    "summary": "Migration adds columns without explicit default values for existing rows",
+    "failure_scenario": "User upgrades from v4 to v5 with long-running task (accumulated 60 minutes) → migration adds lastBreakReminderAtEpochMillis as NULL → shouldShowBreakReminder checks lastReminder = null ?: 0L (becomes 0) and totalElapsed >= 50min (true) → immediate break reminder fires on first check after migration, even though user just upgraded seconds ago. Pre-migration tasks trigger spurious reminders."
+  },
+  {
+    "file": "app/src/main/java/com/timer/app/data/TimerRepository.kt",
+    "line": 697,
+    "summary": "recoverAfterBoot preserves break state but doesn't validate if break period expired during reboot",
+    "failure_scenario": "User takes 10-minute break (breakUntilEpochMillis set to 10:30am) → device reboots at 10:20am and takes 15 minutes to restart → recoverAfterBoot at 10:35am preserves breakUntilEpochMillis=10:30am → task shows as 'on break' but break period already expired 5 minutes ago → user can't resume because break state is stale. Boot recovery should clear expired break state."
+  },
+  {
+    "file": "app/src/main/java/com/timer/app/TimerApplication.kt",
+    "line": 70,
+    "summary": "Migration has no fallback, removed fallbackToDestructiveMigration without adding error handling",
+    "failure_scenario": "User upgrades from v4 to v5 with corrupted database → MIGRATION_4_5 fails on ALTER TABLE due to schema inconsistency → Room throws IllegalStateException → app crashes on startup → user cannot launch app or downgrade (schema hash mismatch) → only recovery is uninstall, losing all data."
+  },
+  {
+    "file": "app/src/main/java/com/timer/app/TimerInterruptionCoordinator.kt",
+    "line": 133,
+    "summary": "applyRecovery updates state but not instance.updatedAtEpochMillis, creating sync inconsistency",
+    "failure_scenario": "User applies recovery to adjust time from 30min to 45min → updateAccumulatedTime changes state version but instance.updatedAtEpochMillis unchanged → cloud sync uploads stale instance timestamp with new state → other device syncs and sees timestamp conflict → sync resolution picks 'newer' instance based on stale timestamp, ignoring recovery edit → user's time adjustment lost on other devices."
+  },
+  {
+    "file": "app/src/main/java/com/timer/app/service/TimerForegroundService.kt",
+    "line": 85,
+    "summary": "Auto-pause and clear timestamp happen sequentially without transaction, creating race window",
+    "failure_scenario": "Service loop iteration 1: checkAutoPause() returns instanceId, calls pauseInstance() → iteration 2 starts before updateBreakReminderTimestamp(0L) executes → checkAutoPause() sees same task again (timestamp not cleared yet) → duplicate pause, duplicate session record, incorrect accumulated time. Race window is 1-5 seconds (service polling interval)."
+  }
+]

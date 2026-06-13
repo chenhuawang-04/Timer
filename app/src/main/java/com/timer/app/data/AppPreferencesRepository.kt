@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStoreFile
@@ -63,6 +64,10 @@ data class AppPreferencesSnapshot(
     val showCompletedTasks: Boolean = true,
     val energyMode: String = EnergyModes.BALANCED,
     val keepScreenOnInFocus: Boolean = true,
+    val breakReminderEnabled: Boolean = true,
+    val breakReminderIntervalMinutes: Int = 50,
+    val breakDurationMinutes: Int = 10,
+    val autoRecoveryEnabled: Boolean = true,
     val lastBackupAtEpochMillis: Long? = null,
     val lastSelectedTab: String = "TODAY",
     val cloudSync: CloudSyncPreferencesSnapshot = CloudSyncPreferencesSnapshot()
@@ -94,6 +99,10 @@ class AppPreferencesRepository(context: Context) {
                 showCompletedTasks = prefs[Keys.showCompletedTasks] ?: true,
                 energyMode = prefs[Keys.energyMode] ?: EnergyModes.BALANCED,
                 keepScreenOnInFocus = prefs[Keys.keepScreenOnInFocus] ?: true,
+                breakReminderEnabled = prefs[Keys.breakReminderEnabled] ?: true,
+                breakReminderIntervalMinutes = prefs[Keys.breakReminderIntervalMinutes] ?: 50,
+                breakDurationMinutes = prefs[Keys.breakDurationMinutes] ?: 10,
+                autoRecoveryEnabled = prefs[Keys.autoRecoveryEnabled] ?: true,
                 lastBackupAtEpochMillis = prefs[Keys.lastBackupAt],
                 lastSelectedTab = prefs[Keys.lastSelectedTab] ?: "TODAY",
                 cloudSync = readCloudSync(prefs)
@@ -115,6 +124,14 @@ class AppPreferencesRepository(context: Context) {
     suspend fun updateEnergyMode(value: String) = writeString(Keys.energyMode, value)
 
     suspend fun updateKeepScreenOnInFocus(value: Boolean) = writeBoolean(Keys.keepScreenOnInFocus, value)
+
+    suspend fun updateBreakReminderEnabled(value: Boolean) = writeBoolean(Keys.breakReminderEnabled, value)
+
+    suspend fun updateBreakReminderIntervalMinutes(value: Int) = writeInt(Keys.breakReminderIntervalMinutes, value)
+
+    suspend fun updateBreakDurationMinutes(value: Int) = writeInt(Keys.breakDurationMinutes, value)
+
+    suspend fun updateAutoRecoveryEnabled(value: Boolean) = writeBoolean(Keys.autoRecoveryEnabled, value)
 
     suspend fun updateLastBackupAt(value: Long?) {
         store.edit { prefs ->
@@ -163,6 +180,10 @@ class AppPreferencesRepository(context: Context) {
     }
 
     private suspend fun writeBoolean(key: Preferences.Key<Boolean>, value: Boolean) {
+        store.edit { prefs -> prefs[key] = value }
+    }
+
+    private suspend fun writeInt(key: Preferences.Key<Int>, value: Int) {
         store.edit { prefs -> prefs[key] = value }
     }
 
@@ -222,6 +243,10 @@ class AppPreferencesRepository(context: Context) {
         val showCompletedTasks = booleanPreferencesKey("show_completed_tasks")
         val energyMode = stringPreferencesKey("energy_mode")
         val keepScreenOnInFocus = booleanPreferencesKey("keep_screen_on_in_focus")
+        val breakReminderEnabled = booleanPreferencesKey("break_reminder_enabled")
+        val breakReminderIntervalMinutes = intPreferencesKey("break_reminder_interval_minutes")
+        val breakDurationMinutes = intPreferencesKey("break_duration_minutes")
+        val autoRecoveryEnabled = booleanPreferencesKey("auto_recovery_enabled")
         val lastBackupAt = longPreferencesKey("last_backup_at")
         val lastSelectedTab = stringPreferencesKey("last_selected_tab")
         val cloudSyncEnabled = booleanPreferencesKey("cloud_sync_enabled")

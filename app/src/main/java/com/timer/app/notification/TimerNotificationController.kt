@@ -192,6 +192,20 @@ class TimerNotificationController(private val context: Context) {
         notificationManager.notify(missed.instanceId.hashCode(), notification)
     }
 
+    fun showBreakReminder(instanceId: String, taskName: String, elapsedMinutes: Int) {
+        if (!canPostNotifications()) return
+        val notification = NotificationCompat.Builder(context, CHANNEL_REMINDERS)
+            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setContentTitle(context.getString(R.string.break_reminder_title))
+            .setContentText(context.getString(R.string.break_reminder_message, elapsedMinutes))
+            .setContentIntent(activityPendingIntent())
+            .setAutoCancel(true)
+            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .build()
+        notificationManager.notify("break:$instanceId".hashCode(), notification)
+    }
+
     fun canPostNotifications(): Boolean {
         return Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
