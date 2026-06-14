@@ -105,6 +105,8 @@ class TimerMathTest {
         startedAtEpochMillis = if (startedAtElapsedRealtimeMillis == null) null else 1_000L,
         startedAtElapsedRealtimeMillis = startedAtElapsedRealtimeMillis,
         lastPersistedAtEpochMillis = 1_000L,
+        lastBreakReminderAtEpochMillis = null,
+        breakUntilEpochMillis = null,
         version = 1L
     )
 

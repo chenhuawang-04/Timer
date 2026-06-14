@@ -352,6 +352,8 @@ class StatsCalculatorTest {
         startedAtEpochMillis = startedAtEpochMillis,
         startedAtElapsedRealtimeMillis = startedAtElapsedRealtimeMillis,
         lastPersistedAtEpochMillis = startedAtEpochMillis ?: 0L,
+        lastBreakReminderAtEpochMillis = null,
+        breakUntilEpochMillis = null,
         version = 1L
     )
 

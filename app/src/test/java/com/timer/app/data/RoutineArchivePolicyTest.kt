@@ -139,6 +139,8 @@ class RoutineArchivePolicyTest {
         startedAtEpochMillis = null,
         startedAtElapsedRealtimeMillis = null,
         lastPersistedAtEpochMillis = 0L,
+        lastBreakReminderAtEpochMillis = null,
+        breakUntilEpochMillis = null,
         version = 0L
     )
 }
