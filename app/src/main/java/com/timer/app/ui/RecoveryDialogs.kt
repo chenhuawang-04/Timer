@@ -29,6 +29,17 @@ fun RecoveryDialog(
 
     val currentTask = interruptedTasks.getOrNull(currentIndex) ?: return
 
+    // Defined before use: advances to the next interrupted task or dismisses the dialog.
+    val moveToNextOrDismiss: () -> Unit = {
+        showCustomInput = false
+        customMinutes = ""
+        if (currentIndex < interruptedTasks.size - 1) {
+            currentIndex++
+        } else {
+            onDismiss()
+        }
+    }
+
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             shape = MaterialTheme.shapes.large,
@@ -139,16 +150,6 @@ fun RecoveryDialog(
                     )
                 }
             }
-        }
-    }
-
-    fun moveToNextOrDismiss() {
-        showCustomInput = false
-        customMinutes = ""
-        if (currentIndex < interruptedTasks.size - 1) {
-            currentIndex++
-        } else {
-            onDismiss()
         }
     }
 }
